@@ -1,0 +1,40 @@
+{
+	"name": "browser-cookie-utils",
+	"description": "Lightweight, dependency-free JavaScript helpers for getting, setting, and deleting browser cookies safely and consistently.",
+	"version": "1.0.0",
+	"type": "module",
+	"main": "dist/browser-cookie-utils.min.js",
+	"files": [
+		"dist/",
+		"README.md",
+		"LICENSE"
+	],
+	"scripts": {
+		"lint": "eslint .",
+		"lint:fix": "eslint . --fix",
+		"format": "prettier --write src/**/*.js",
+		"build": "node build.js"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/samiahmedsiddiqui/browser-cookie-utils.git"
+	},
+	"keywords": [
+		"cookie",
+		"browser",
+		"utils"
+	],
+	"author": "Sami Ahmed Siddiqui <samiahmedsiddiqui91@gmail.com>",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/samiahmedsiddiqui/browser-cookie-utils/issues"
+	},
+	"homepage": "https://github.com/samiahmedsiddiqui/browser-cookie-utils#readme",
+	"devDependencies": {
+		"eslint": "9.39.2",
+		"eslint-config-prettier": "10.1.8",
+		"eslint-plugin-prettier": "5.5.4",
+		"prettier": "3.7.4",
+		"terser": "5.44.1"
+	}
+}

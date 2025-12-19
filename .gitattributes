@@ -1,0 +1,8 @@
+* text=auto eol=lf
+
+# Remove files for archives generated using `git archive`.
+.*                export-ignore
+build.js          export-ignore
+eslint.config.js  export-ignore
+package-lock.json export-ignore
+src               export-ignore

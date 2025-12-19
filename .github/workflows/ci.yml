@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Lint JavaScript
+        run: npm run lint
+
+      - name: Fix formatting
+        run: npm run format
+
+      - name: Build cookie-utils
+        run: node build.js
+
+      - name: Verify dist folder
+        run: ls -la dist
