@@ -1,14 +1,23 @@
 {
 	"name": "browser-cookie-utils",
-	"description": "Lightweight, dependency-free JavaScript helpers for getting, setting, and deleting browser cookies safely and consistently.",
-	"version": "1.0.0",
+	"version": "2.0.0",
+	"description": "Lightweight, dependency-free JavaScript helpers for getting, setting, and deleting browser cookies with modern browser support.",
 	"type": "module",
-	"main": "dist/browser-cookie-utils.min.js",
+	"main": "dist/browser-cookie-utils.cjs.min.js",
+	"module": "dist/browser-cookie-utils.min.js",
+	"exports": {
+		".": {
+			"import": "./dist/browser-cookie-utils.min.js",
+			"require": "./dist/browser-cookie-utils.cjs.min.js"
+		}
+	},
 	"files": [
 		"dist/",
 		"README.md",
+		"CHANGELOG.md",
 		"LICENSE"
 	],
+	"sideEffects": false,
 	"scripts": {
 		"lint": "eslint .",
 		"lint:fix": "eslint . --fix",
@@ -21,8 +30,13 @@
 	},
 	"keywords": [
 		"cookie",
+		"cookies",
 		"browser",
-		"utils"
+		"utils",
+		"samesite",
+		"secure",
+		"frontend",
+		"web"
 	],
 	"author": "Sami Ahmed Siddiqui <samiahmedsiddiqui91@gmail.com>",
 	"license": "MIT",

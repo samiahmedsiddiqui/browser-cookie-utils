@@ -1,3 +1,8 @@
+/*! browser-cookie-utils v2.0.0 | License: MIT */
+
+
+'use strict';
+const window = globalThis;
 (function () {
 	'use strict';
 
@@ -157,3 +162,5 @@
 	window.browserCookieUtils.setCookie = setCookie;
 	window.browserCookieUtils.deleteCookie = deleteCookie;
 })();
+
+module.exports = window.browserCookieUtils;

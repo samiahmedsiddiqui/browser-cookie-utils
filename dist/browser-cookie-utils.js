@@ -1,3 +1,4 @@
+/*! browser-cookie-utils v2.0.0 | License: MIT */
 (function () {
 	'use strict';
 
