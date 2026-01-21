@@ -1,6 +1,6 @@
 {
 	"name": "browser-cookie-utils",
-	"version": "2.0.0",
+	"version": "2.0.1",
 	"description": "Lightweight, dependency-free JavaScript helpers for getting, setting, and deleting browser cookies with modern browser support.",
 	"type": "module",
 	"main": "dist/browser-cookie-utils.cjs.min.js",

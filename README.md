@@ -33,21 +33,13 @@ npm install browser-cookie-utils@2
 import { setCookie, getCookie, deleteCookie } from 'browser-cookie-utils';
 ```
 
-> Do not use global object `browserCookieUtils`.
-
 #### CJS import (Node.js / legacy bundlers):
 
 ```js
-const browserCookieUtils = require('browser-cookie-utils');
+const { getCookie, setCookie, deleteCookie } = require('browser-cookie-utils');
 ```
 
-### UMD / Browser Script Tag
-
-```html
-<script src="https://cdn.jsdelivr.net/npm/browser-cookie-utils/dist/browser-cookie-utils.umd.js"></script>
-```
-
-#### jsDelivr CDN (Latest)
+### Browser (UMD / CDN)
 
 ```html
 <script src="https://cdn.jsdelivr.net/npm/browser-cookie-utils/dist/browser-cookie-utils.umd.js"></script>
@@ -58,7 +50,7 @@ const browserCookieUtils = require('browser-cookie-utils');
 | File                              | Format     | Notes                                   |
 | --------------------------------- | ---------- | --------------------------------------- |
 | `browser-cookie-utils.js`         | ESM        | Non-minified, modern bundlers           |
-| `browser-cookie-utils.min.js`     | ESM        | Minified, production-ready              |
+| `browser-cookie-utils.min.js`     | ESM        | Minified, production-ready (ES module)  |
 | `browser-cookie-utils.cjs.js`     | CJS        | Non-minified, Node.js / CommonJS        |
 | `browser-cookie-utils.cjs.min.js` | CJS        | Minified, production-ready              |
 | `browser-cookie-utils.umd.js`     | UMD        | Legacy browsers / script tag & CommonJS |
@@ -66,12 +58,43 @@ const browserCookieUtils = require('browser-cookie-utils');
 
 > **Note:** The library attaches itself to `window.browserCookieUtils` in the browser.
 
-## Usage
+## Usage by environment
+
+### ES Modules (recommended)
+
+```js
+import { getCookie, setCookie, deleteCookie } from 'browser-cookie-utils';
+
+setCookie('theme', 'dark');
+```
+
+### CommonJS
+
+```js
+const { getCookie, setCookie, deleteCookie } = require('browser-cookie-utils');
+
+setCookie('theme', 'dark');
+```
+
+### Browser (script tag / CDN)
+
+```js
+<script src="https://cdn.jsdelivr.net/npm/browser-cookie-utils/dist/browser-cookie-utils.umd.js"></script>
+<script>
+  browserCookieUtils.setCookie('theme', 'dark');
+</script>
+```
+
+> The global `browserCookieUtils` is available only when using the UMD build.
+
+## API Usage
 
 ### Set a cookie (basic)
 
 ```js
-browserCookieUtils.setCookie('theme', 'dark');
+import { setCookie } from 'browser-cookie-utils';
+
+setCookie('theme', 'dark');
 ```
 
 Creates a cookie with:
@@ -86,7 +109,9 @@ Creates a cookie with:
 ### Set a cookie with options
 
 ```js
-browserCookieUtils.setCookie('session', 'abc123', {
+import { setCookie } from 'browser-cookie-utils';
+
+setCookie('session', 'abc123', {
   timeToLive: 2,
   unit: 'hour'
 });
@@ -103,7 +128,9 @@ Supported units:
 ### Set cookie with full configuration
 
 ```js
-browserCookieUtils.setCookie('user', 'sami', {
+import { setCookie } from 'browser-cookie-utils';
+
+setCookie('user', 'sami', {
   timeToLive: 7,
   unit: 'day',
   domains: ['example.com', '.example.org'],
@@ -127,7 +154,9 @@ browserCookieUtils.setCookie('user', 'sami', {
 ### Cross-site cookies (SameSite=None)
 
 ```js
-browserCookieUtils.setCookie('crossSite', 'true', {
+import { setCookie } from 'browser-cookie-utils';
+
+setCookie('crossSite', 'true', {
   sameSite: 'None',
   secure: true
 });
@@ -138,7 +167,9 @@ browserCookieUtils.setCookie('crossSite', 'true', {
 ## Get a cookie
 
 ```js
-const theme = browserCookieUtils.getCookie('theme');
+import { getCookie } from 'browser-cookie-utils';
+
+const theme = getCookie('theme');
 ```
 
 Returns:
@@ -149,13 +180,17 @@ Returns:
 ## Delete a cookie
 
 ```js
-browserCookieUtils.deleteCookie('theme');
+import { deleteCookie } from 'browser-cookie-utils';
+
+deleteCookie('theme');
 ```
 
 ### Delete with options (recommended)
 
 ```js
-browserCookieUtils.deleteCookie('user', {
+import { deleteCookie } from 'browser-cookie-utils';
+
+deleteCookie('user', {
   domains: ['example.com'],
   path: '/',
   sameSite: 'Lax',
@@ -164,6 +199,11 @@ browserCookieUtils.deleteCookie('user', {
 ```
 
 > ⚠️ For deletion to succeed, `domain`, `path`, `secure`, and `sameSite` **must match** the original cookie.
+
+> **Browser (UMD) usage:**
+> When using the UMD build via a `<script>` tag, replace imported functions with
+> `browserCookieUtils.*`.
+
 
 ## Migration Guide (v1.x → v2.0.0)
 

@@ -2,12 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.0.0] - Modernized Cookie API + Dual Minified Builds
+## [2.0.1] - Jan 21, 2026
+
+### Fixed
+
+- ESM exports (`getCookie`, `setCookie`, `deleteCookie`) now work correctly for modern bundlers.
+- UMD build now properly exposes `browserCookieUtils` globally in the browser and supports CommonJS.
+- **Fixed** build errors caused by Terser parsing `export` statements inside wrapped code.
+- Updated README usage examples to reflect the correct import syntax for ESM and CommonJS.
+
+
+## [2.0.0] - Jan 5, 2026
 
 ### ⚠️ Breaking Changes
 
-- `setCookie` and `deleteCookie` now use **options object**
-- Positional arguments from v1.x are no longer supported
+- `setCookie` and `deleteCookie` now use **options object** instead of positional arguments (see migration guide in README)
 
 ### Added
 
@@ -27,7 +36,7 @@ All notable changes to this project will be documented in this file.
 - Robust Terser minification with banners and error handling
 - Clearer migration guidance
 
-## [1.0.0] - Initial Release
+## [1.0.0] - Dec 19, 25
 
 - Initial release of **browser-cookie-utils**
 - `getCookie`, `setCookie`, `deleteCookie` helpers

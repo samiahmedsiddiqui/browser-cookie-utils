@@ -6,7 +6,9 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
+const pkg = JSON.parse(
+	fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8')
+);
 const { name, version, license } = pkg;
 
 const srcFile = path.join(__dirname, 'src/browser-cookie-utils.js');
@@ -22,17 +24,28 @@ const mapFile = 'browser-cookie-utils.min.js.map';
 
 const banner = `/*! ${name} v${version} | License: ${license} */`;
 
+function stripExports(code) {
+	return code.replace(
+		/^\s*export\s*\{[^}]*\};?\s*$/gm,
+		''
+	);
+}
+
 async function build() {
 	try {
 		fs.mkdirSync(distDir, { recursive: true });
 
-		const sourceCode = fs.readFileSync(srcFile, 'utf8');
+    const sourceCode = fs.readFileSync(srcFile, 'utf8');
+    const nonEsmCode = stripExports(sourceCode);
+
+		/* ---------------- ESM ---------------- */
 
 		// Non-minified ESM
 		fs.writeFileSync(esmFile, `${banner}\n${sourceCode}`, 'utf8');
 
 		// Minified ESM + source map
 		const esmMin = await minify(sourceCode, {
+			module: true,
 			compress: { passes: 2 },
 			mangle: true,
 			format: {
@@ -44,19 +57,20 @@ async function build() {
 				url: mapFile
 			}
 		});
+
 		fs.writeFileSync(esmMinFile, esmMin.code, 'utf8');
 		fs.writeFileSync(path.join(distDir, mapFile), esmMin.map, 'utf8');
 
-		// Non-minified CJS
+		/* ---------------- CJS ---------------- */
+
 		const cjsWrapped = `
 'use strict';
-const window = globalThis;
-${sourceCode}
-module.exports = window.browserCookieUtils;
+${nonEsmCode}
+module.exports = { getCookie, setCookie, deleteCookie };
 `;
-		fs.writeFileSync(cjsFile, `${banner}\n\n${cjsWrapped}`, 'utf8');
 
-		// Minified CJS
+		fs.writeFileSync(cjsFile, `${banner}\n${cjsWrapped}`, 'utf8');
+
 		const cjsMin = await minify(cjsWrapped, {
 			compress: { passes: 2 },
 			mangle: true,
@@ -65,9 +79,11 @@ module.exports = window.browserCookieUtils;
 				preamble: banner
 			}
 		});
+
 		fs.writeFileSync(cjsMinFile, cjsMin.code, 'utf8');
 
-		// UMD build
+		/* ---------------- UMD ---------------- */
+
 		const umdWrapped = `
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
@@ -78,10 +94,11 @@ module.exports = window.browserCookieUtils;
     root.browserCookieUtils = factory();
   }
 }(typeof self !== 'undefined' ? self : this, function () {
-${sourceCode}
-return window.browserCookieUtils;
+${nonEsmCode}
+return { getCookie, setCookie, deleteCookie };
 }));
 `;
+
 		const umdMinified = await minify(umdWrapped, {
 			compress: { passes: 2 },
 			mangle: true,
@@ -90,6 +107,7 @@ return window.browserCookieUtils;
 				preamble: banner
 			}
 		});
+
 		fs.writeFileSync(umdFile, umdMinified.code, 'utf8');
 
 		console.log('✔ Build complete');
