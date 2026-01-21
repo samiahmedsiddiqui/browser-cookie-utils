@@ -10,7 +10,7 @@ export default [
 		files: ['src/**/*.js'],
 		languageOptions: {
 			ecmaVersion: 'latest',
-			sourceType: 'script',
+			sourceType: 'module',
 			globals: {
 				window: 'readonly',
 				document: 'readonly'
@@ -28,6 +28,6 @@ export default [
 	},
 
 	{
-		ignores: ['dist/**', 'node_modules/**']
+		ignores: ['build.js', 'dist/**', 'node_modules/**']
 	}
 ];
