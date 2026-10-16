@@ -466,7 +466,7 @@ If you need the old behavior, continue using `v1.x`, which remains stable.
 - Invalid `domains` are skipped. If none is usable, nothing is written and `setCookie` returns `false`
 - Glob patterns (`*`, `?`) are matched in linear time. **RegExp patterns you pass are run as-is**, so avoid patterns that can backtrack heavily (e.g. `/^(a+)+$/`)
 - `getJSONCookie` drops `__proto__` keys, so merging the result can't change prototypes
-- Lifetimes are capped at 400 days, the limit browsers enforce
+- Lifetimes are capped at 400 days by the library. Chromium and Firefox cap at 400 days; WebKit caps lower, and Safari limits cookies set from JavaScript to 7 days (ITP)
 - Does **not** set `HttpOnly` (not possible via JavaScript)
 
 ### Recommendations

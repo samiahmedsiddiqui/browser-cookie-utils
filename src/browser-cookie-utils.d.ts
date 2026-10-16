@@ -20,7 +20,7 @@ export interface CookieAttributes {
 }
 
 export interface SetCookieOptions extends CookieAttributes {
-	/** Expiration duration. Defaults to `1`. Capped at 400 days (the browser limit). */
+	/** Expiration duration. Defaults to `1`. Capped at 400 days by the library. Chromium and Firefox cap at 400 days; WebKit caps lower, and Safari limits cookies set from JavaScript to 7 days (ITP). */
 	timeToLive?: number;
 	/** Expiration unit. Defaults to `hour`. */
 	unit?: CookieUnit;

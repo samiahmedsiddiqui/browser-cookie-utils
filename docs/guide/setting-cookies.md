@@ -47,7 +47,7 @@ setCookie('session', 'abc123', { timeToLive: 2, unit: 'hour' });
 
 - An unknown `unit` falls back to `hour`.
 - An invalid `timeToLive` (0, negative, `NaN`, `Infinity`, non-number) falls back to `1`.
-- Lifetimes are capped at **400 days**, the limit browsers enforce.
+- Lifetimes are capped at **400 days** by the library. Chromium and Firefox cap at 400 days; WebKit caps lower, and Safari limits cookies set from JavaScript to 7 days (ITP).
 
 ### Exact date <Badge type="tip" text="2.1.0+" />
 

@@ -11,7 +11,7 @@
 - Applies `__Secure-` / `__Host-` prefix rules
 - Matches glob patterns (`*`, `?`) in linear time
 - Drops `__proto__` keys in `getJSONCookie`
-- Caps lifetimes at 400 days, the browser limit
+- Caps lifetimes at 400 days. Chromium and Firefox cap at 400 days; WebKit caps lower, and Safari limits cookies set from JavaScript to 7 days (ITP)
 
 It does **not** set `HttpOnly` — that's impossible from JavaScript.
 
