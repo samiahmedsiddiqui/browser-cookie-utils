@@ -481,6 +481,15 @@ If you need the old behavior, continue using `v1.x`, which remains stable.
 - Works without polyfills
 - No reliance on deprecated APIs
 
+## Author
+
+**Sami Ahmed Siddiqui**
+
+- GitHub: [@samiahmedsiddiqui](https://github.com/samiahmedsiddiqui)
+- LinkedIn: [sami-ahmed-siddiqui](https://www.linkedin.com/in/sami-ahmed-siddiqui/)
+
+Questions and bug reports: please use [GitHub Issues](https://github.com/samiahmedsiddiqui/browser-cookie-utils/issues). Security issues: see [SECURITY.md](SECURITY.md).
+
 ## License
 
 MIT © [Sami Ahmed Siddiqui](https://github.com/samiahmedsiddiqui)

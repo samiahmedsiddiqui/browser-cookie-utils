@@ -57,6 +57,11 @@ export default defineConfig({
 		socialLinks: [
 			{ icon: 'github', link: repo },
 			{
+				icon: 'linkedin',
+				link: 'https://www.linkedin.com/in/sami-ahmed-siddiqui/',
+				ariaLabel: 'Author on LinkedIn'
+			},
+			{
 				icon: 'npm',
 				link: 'https://www.npmjs.com/package/browser-cookie-utils'
 			}
@@ -71,7 +76,8 @@ export default defineConfig({
 
 		footer: {
 			message: 'Released under the MIT License.',
-			copyright: 'Copyright © Sami Ahmed Siddiqui'
+			copyright:
+				'Copyright © <a href="https://www.linkedin.com/in/sami-ahmed-siddiqui/">Sami Ahmed Siddiqui</a>'
 		}
 	}
 });
