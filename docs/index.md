@@ -29,4 +29,8 @@ features:
     details: Store objects with setJSONCookie, and create a scoped instance with default options and a name prefix.
   - title: Modern cookie features
     details: Partitioned (CHIPS) cookies, session cookies, exact expiry dates and units from seconds to years.
+  - title: Watch for changes
+    details: onCookieChange reports created, changed and deleted cookies — via the Cookie Store API where available, polling elsewhere.
+  - title: Any encoding
+    details: Custom encode / decode functions read and write cookies set by other systems, without opening attribute injection.
 ---

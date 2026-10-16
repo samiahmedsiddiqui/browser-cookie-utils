@@ -12,7 +12,8 @@ import {
 	getJSONCookie,
 	setJSONCookie,
 	deleteCookie,
-	deleteCookies
+	deleteCookies,
+	onCookieChange
 } from '../src/browser-cookie-utils.js';
 
 import { mockBrowser, written } from './helpers/mock-browser.js';
@@ -680,6 +681,7 @@ test('helpers are no-ops without a browser', () => {
 	assert.equal(setCookie('a', '1'), false);
 	assert.equal(deleteCookie('a'), false);
 	assert.deepEqual(deleteCookies('*'), []);
+	assert.equal(onCookieChange('*', () => {})(), undefined);
 });
 
 test('CJS build exports the helpers', () => {
@@ -695,7 +697,224 @@ test('CJS build exports the helpers', () => {
 		'getCookies',
 		'getJSONCookie',
 		'hasCookie',
+		'onCookieChange',
 		'setCookie',
 		'setJSONCookie'
 	]);
+});
+
+const legacy = {
+	encode: (value) => escape(value),
+	decode: (value) => unescape(value)
+};
+
+test('decode reads cookies written by other systems', () => {
+	document.setJar('php=caf%E9; json=%7B%22a%22%3A1%7D');
+
+	assert.equal(getCookie('php'), 'caf%E9');
+	assert.equal(getCookie('php', legacy), 'café');
+	assert.deepEqual(getAllCookies(legacy), { php: 'café', json: '{"a":1}' });
+	assert.deepEqual(getCookies('p*', legacy), { php: 'café' });
+	assert.deepEqual(getJSONCookie('json', legacy), { a: 1 });
+});
+
+test('decode and encode receive the cookie name', () => {
+	const names = [];
+	const track = (value, name) => {
+		names.push(name);
+		return value;
+	};
+
+	setCookie('a', '1', { encode: track });
+	getCookie('a', { decode: track });
+
+	assert.deepEqual(names, ['a', 'a']);
+});
+
+test('encode controls how the value is written', () => {
+	assert.equal(setCookie('a', 'café', legacy), true);
+	assert.match(written[0], /^a=caf%E9;/);
+	assert.equal(getCookie('a', legacy), 'café');
+
+	assert.equal(setCookie('raw', 'a:b/c', { encode: (value) => value }), true);
+	assert.match(written[1], /^raw=a:b\/c;/);
+	assert.equal(setJSONCookie('j', { a: 1 }, legacy), true);
+	assert.deepEqual(getJSONCookie('j', legacy), { a: 1 });
+});
+
+test('createCookieUtils encode and decode defaults can be overridden', () => {
+	const cookies = createCookieUtils({ namePrefix: 'app_', ...legacy });
+
+	assert.equal(cookies.setCookie('a', 'é'), true);
+	assert.equal(getCookie('app_a'), '%E9');
+	assert.equal(cookies.getCookie('a'), 'é');
+	assert.deepEqual(cookies.getAllCookies(), { a: 'é' });
+	assert.deepEqual(cookies.getCookies('*'), { a: 'é' });
+	assert.equal(cookies.getCookie('a', { decode: (value) => value }), '%E9');
+
+	cookies.setCookie('b', 'é', { encode: undefined });
+	assert.equal(getCookie('app_b'), '%E9');
+	cookies.setCookie('c', 'é', { encode: encodeURIComponent });
+	assert.equal(getCookie('app_c'), 'é');
+});
+
+const fakeCookieStore = () => {
+	const listeners = new Set();
+
+	return {
+		listeners,
+		addEventListener: (type, listener) => {
+			assert.equal(type, 'change');
+			listeners.add(listener);
+		},
+		removeEventListener: (type, listener) => listeners.delete(listener),
+		emit: () => listeners.forEach((listener) => listener({}))
+	};
+};
+
+test('onCookieChange polls for creates, changes and deletes', (t) => {
+	t.mock.timers.enable({ apis: ['setInterval'] });
+	document.setJar('theme=dark; other=1');
+	const changes = [];
+
+	const stop = onCookieChange('theme', (change) => changes.push(change));
+
+	t.mock.timers.tick(1000);
+	assert.deepEqual(changes, []);
+
+	setCookie('theme', 'light');
+	setCookie('other', '2');
+	t.mock.timers.tick(1000);
+	deleteCookie('theme');
+	t.mock.timers.tick(1000);
+	setCookie('theme', 'dark mode');
+	t.mock.timers.tick(999);
+	assert.equal(changes.length, 2);
+	t.mock.timers.tick(1);
+
+	assert.deepEqual(changes, [
+		{ name: 'theme', value: 'light', oldValue: 'dark' },
+		{ name: 'theme', value: null, oldValue: 'light' },
+		{ name: 'theme', value: 'dark mode', oldValue: null }
+	]);
+
+	stop();
+	stop();
+	setCookie('theme', 'x');
+	t.mock.timers.tick(1000);
+	assert.equal(changes.length, 3);
+});
+
+test('onCookieChange accepts patterns, a custom interval and decode', (t) => {
+	t.mock.timers.enable({ apis: ['setInterval'] });
+	const changes = [];
+
+	onCookieChange(/^ab_/, (change) => changes.push(change), {
+		interval: 250,
+		decode: (value) => value.toUpperCase()
+	});
+
+	document.cookie = 'ab_x=on';
+	document.cookie = 'ab_y=';
+	document.cookie = 'other=1';
+	t.mock.timers.tick(250);
+
+	assert.deepEqual(changes, [
+		{ name: 'ab_x', value: 'ON', oldValue: null },
+		{ name: 'ab_y', value: '', oldValue: null }
+	]);
+});
+
+test('onCookieChange uses the Cookie Store change event when available', (t) => {
+	t.mock.timers.enable({ apis: ['setInterval'] });
+	const store = fakeCookieStore();
+	window.cookieStore = store;
+	const changes = [];
+
+	const stop = onCookieChange('a', (change) => changes.push(change));
+	assert.equal(store.listeners.size, 1);
+
+	setCookie('a', '1');
+	t.mock.timers.tick(5000);
+	assert.deepEqual(changes, []);
+
+	store.emit();
+	store.emit();
+	assert.deepEqual(changes, [{ name: 'a', value: '1', oldValue: null }]);
+
+	stop();
+	assert.equal(store.listeners.size, 0);
+});
+
+test('onCookieChange reports callback errors without skipping changes', (t) => {
+	t.mock.timers.enable({ apis: ['setInterval'] });
+	const reported = [];
+	t.mock.method(globalThis, 'setTimeout', (report) => reported.push(report));
+	const names = [];
+
+	onCookieChange('*', ({ name }) => {
+		names.push(name);
+		throw new Error(`boom ${name}`);
+	});
+
+	document.cookie = 'a=1';
+	document.cookie = 'b=1';
+	t.mock.timers.tick(1000);
+	assert.deepEqual(names, ['a', 'b']);
+
+	assert.equal(reported.length, 2);
+	assert.throws(reported[0], /boom a/);
+	assert.throws(reported[1], /boom b/);
+});
+
+test('onCookieChange stops mid-batch when unsubscribed in the callback', (t) => {
+	t.mock.timers.enable({ apis: ['setInterval'] });
+	const names = [];
+
+	const stop = onCookieChange('*', ({ name }) => {
+		names.push(name);
+		stop();
+	});
+
+	document.cookie = 'a=1';
+	document.cookie = 'b=1';
+	t.mock.timers.tick(1000);
+
+	assert.deepEqual(names, ['a']);
+});
+
+test('onCookieChange ignores invalid patterns and callbacks', (t) => {
+	t.mock.timers.enable({ apis: ['setInterval'] });
+
+	[
+		['', () => {}],
+		[42, () => {}],
+		['*', null],
+		['*', 'nope']
+	].forEach(([pattern, callback]) => {
+		const stop = onCookieChange(pattern, callback);
+
+		assert.equal(typeof stop, 'function');
+		stop();
+	});
+
+	document.cookie = 'a=1';
+	t.mock.timers.tick(1000);
+});
+
+test('createCookieUtils onCookieChange only sees prefixed cookies', (t) => {
+	t.mock.timers.enable({ apis: ['setInterval'] });
+	const cookies = createCookieUtils({ namePrefix: 'app_', interval: 200 });
+	const changes = [];
+
+	const stop = cookies.onCookieChange('*', (change) => changes.push(change));
+
+	cookies.setCookie('theme', 'dark');
+	setCookie('theme', 'global');
+	t.mock.timers.tick(200);
+
+	assert.deepEqual(changes, [{ name: 'theme', value: 'dark', oldValue: null }]);
+	assert.equal(cookies.onCookieChange('', () => {})(), undefined);
+	assert.equal(cookies.onCookieChange('*', null)(), undefined);
+	stop();
 });

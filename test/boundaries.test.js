@@ -7,7 +7,8 @@ import {
 	getCookies,
 	setCookie,
 	deleteCookie,
-	deleteCookies
+	deleteCookies,
+	onCookieChange
 } from '../src/browser-cookie-utils.js';
 import { mockBrowser, written } from './helpers/mock-browser.js';
 
@@ -464,5 +465,147 @@ describe('createCookieUtils boundaries', () => {
 
 		assert.equal(cookies.setCookie('a', '1'), false);
 		assert.deepEqual(written, []);
+	});
+});
+
+describe('encode boundaries', () => {
+	test('an empty encoded value is written', () => {
+		assert.equal(setCookie('a', 'x', { encode: () => '' }), true);
+		assert.match(written[0], /^a=;/);
+		assert.equal(getCookie('a'), '');
+	});
+
+	test('a 4 KB encoded value is passed through unchanged', () => {
+		const value = 'v'.repeat(4096);
+
+		assert.equal(setCookie('a', value, { encode: (raw) => raw }), true);
+		assert.equal(written[0].split(';')[0], `a=${value}`);
+	});
+
+	test('characters browsers accept in values are allowed', () => {
+		assert.equal(setCookie('a', '1', { encode: () => '",\\:/=%' }), true);
+	});
+
+	const unsafe = [
+		['a semicolon', 'x; domain=evil.com'],
+		['a space', 'a b'],
+		['a tab', 'a\tb'],
+		['a NUL', 'a\u0000b'],
+		['a newline', 'a\nb'],
+		['the 0x1f control character', 'a\u001fb'],
+		['DEL', 'a\u007fb']
+	];
+
+	unsafe.forEach(([label, encoded]) => {
+		test(`${label} writes nothing`, () => {
+			assert.equal(setCookie('a', '1', { encode: () => encoded }), false);
+			assert.deepEqual(written, []);
+		});
+	});
+
+	test('non-string results and throwing encoders write nothing', () => {
+		[1, null, undefined, {}, ['x']].forEach((result) =>
+			assert.equal(setCookie('a', '1', { encode: () => result }), false)
+		);
+		assert.equal(
+			setCookie('a', '1', {
+				encode: () => {
+					throw new Error('nope');
+				}
+			}),
+			false
+		);
+		assert.deepEqual(written, []);
+	});
+
+	test('a non-function encode falls back to URI encoding', () => {
+		['escape', 1, null, {}].forEach((encode) =>
+			setCookie('a', 'a b', { encode })
+		);
+
+		written.forEach((cookie) => assert.match(cookie, /^a=a%20b;/));
+	});
+});
+
+describe('decode boundaries', () => {
+	beforeEach(() => document.setJar('a=a%20b; empty='));
+
+	test('an empty value is passed to decode', () => {
+		assert.equal(getCookie('empty', { decode: (value) => `[${value}]` }), '[]');
+	});
+
+	test('an empty decoded value is kept', () => {
+		assert.equal(getCookie('a', { decode: () => '' }), '');
+	});
+
+	test('non-string results and throwing decoders return the raw value', () => {
+		[1, null, undefined, {}].forEach((result) =>
+			assert.equal(getCookie('a', { decode: () => result }), 'a%20b')
+		);
+		assert.equal(
+			getCookie('a', {
+				decode: () => {
+					throw new Error('nope');
+				}
+			}),
+			'a%20b'
+		);
+	});
+
+	test('a non-function decode falls back to URI decoding', () => {
+		['unescape', 1, null, {}].forEach((decode) =>
+			assert.equal(getCookie('a', { decode }), 'a b')
+		);
+		assert.equal(getCookie('a', null), 'a b');
+	});
+});
+
+describe('onCookieChange interval boundaries', () => {
+	const MAX_INTERVAL = 2147483647;
+	const cases = [
+		['undefined uses the 1 second default', undefined, 1000],
+		['0 uses the default', 0, 1000],
+		['negative uses the default', -100, 1000],
+		['NaN uses the default', NaN, 1000],
+		['Infinity uses the default', Infinity, 1000],
+		['a numeric string uses the default', '500', 1000],
+		['null uses the default', null, 1000],
+		['1 ms is raised to the 100 ms minimum', 1, 100],
+		['99.6 ms is raised to the minimum', 99.6, 100],
+		['exactly 100 ms is kept', 100, 100],
+		['fractional values are rounded', 150.4, 150],
+		['the setInterval maximum is kept', MAX_INTERVAL, MAX_INTERVAL],
+		['above the setInterval maximum is capped', MAX_INTERVAL + 1, MAX_INTERVAL],
+		['Number.MAX_VALUE is capped', Number.MAX_VALUE, MAX_INTERVAL]
+	];
+
+	cases.forEach(([label, interval, expected]) => {
+		test(label, (t) => {
+			const setIntervalMock = t.mock.method(globalThis, 'setInterval', () => 1);
+			t.mock.method(globalThis, 'clearInterval', () => {});
+
+			onCookieChange('a', () => {}, { interval })();
+
+			assert.equal(setIntervalMock.mock.calls[0].arguments[1], expected);
+		});
+	});
+
+	test('null options use the default', (t) => {
+		const setIntervalMock = t.mock.method(globalThis, 'setInterval', () => 1);
+		t.mock.method(globalThis, 'clearInterval', () => {});
+
+		onCookieChange('a', () => {}, null)();
+
+		assert.equal(setIntervalMock.mock.calls[0].arguments[1], 1000);
+	});
+
+	test('a cookieStore without addEventListener falls back to polling', (t) => {
+		const setIntervalMock = t.mock.method(globalThis, 'setInterval', () => 1);
+		t.mock.method(globalThis, 'clearInterval', () => {});
+		window.cookieStore = {};
+
+		onCookieChange('a', () => {})();
+
+		assert.equal(setIntervalMock.mock.calls.length, 1);
 	});
 });

@@ -89,6 +89,7 @@ setCookie('user', 'sami', {
 | `sameSite`    | `string`   | `'Lax'`          | `Lax`, `Strict` or `None`; anything else becomes `Lax`       |
 | `secure`      | `boolean`  | `true` on HTTPS  | Forces the `Secure` flag                                     |
 | `partitioned` | `boolean`  | `false`          | Adds `Partitioned` (CHIPS); forces `Secure`, `SameSite=None` |
+| `encode`      | `function` | URI encoding     | Custom value encoder — see [Custom encoding](./encoding)     |
 
 ::: tip localhost and IP addresses
 The `domain` attribute is skipped for `localhost` and IP addresses (browsers reject it there), so a host-only cookie is set instead.

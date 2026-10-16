@@ -27,13 +27,16 @@ const prefs = getJSONCookie<Prefs>('prefs'); // Prefs | null
 
 ## Exported types
 
-| Type                   | Description                                                              |
-| ---------------------- | ------------------------------------------------------------------------ |
-| `CookieUnit`           | `'second' \| 'minute' \| 'hour' \| 'day' \| 'week' \| 'month' \| 'year'` |
-| `CookieSameSite`       | `'Lax' \| 'Strict' \| 'None'`                                            |
-| `CookieAttributes`     | `domains`, `path`, `sameSite`, `secure`, `partitioned`                   |
-| `SetCookieOptions`     | `CookieAttributes` + `timeToLive`, `unit`, `expires`, `session`          |
-| `DeleteCookiesOptions` | `CookieAttributes` with `paths` instead of `path`                        |
-| `CookieNamePattern`    | `string \| RegExp \| ((name: string) => boolean)`                        |
-| `CookieUtilsDefaults`  | `SetCookieOptions` + `paths` + `namePrefix`                              |
-| `CookieUtils`          | The object returned by `createCookieUtils`                               |
+| Type                   | Description                                                               |
+| ---------------------- | ------------------------------------------------------------------------- |
+| `CookieUnit`           | `'second' \| 'minute' \| 'hour' \| 'day' \| 'week' \| 'month' \| 'year'`  |
+| `CookieSameSite`       | `'Lax' \| 'Strict' \| 'None'`                                             |
+| `CookieAttributes`     | `domains`, `path`, `sameSite`, `secure`, `partitioned`                    |
+| `SetCookieOptions`     | `CookieAttributes` + `timeToLive`, `unit`, `expires`, `session`, `encode` |
+| `CookieReadOptions`    | `decode`                                                                  |
+| `CookieChange`         | `{ name, value, oldValue }` passed to the `onCookieChange` callback       |
+| `CookieChangeOptions`  | `CookieReadOptions` + `interval`                                          |
+| `DeleteCookiesOptions` | `CookieAttributes` with `paths` instead of `path`                         |
+| `CookieNamePattern`    | `string \| RegExp \| ((name: string) => boolean)`                         |
+| `CookieUtilsDefaults`  | `SetCookieOptions` + `CookieChangeOptions` + `paths` + `namePrefix`       |
+| `CookieUtils`          | The object returned by `createCookieUtils`                                |

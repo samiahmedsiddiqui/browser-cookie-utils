@@ -16,7 +16,9 @@ cookies.setCookie('lang', 'en', { sameSite: 'Lax' }); // overrides one option
 cookies.deleteCookie('theme');
 ```
 
-The returned object has the same helpers as the module: `getCookie`, `hasCookie`, `getAllCookies`, `getCookies`, `setCookie`, `getJSONCookie`, `setJSONCookie`, `deleteCookie`, `deleteCookies`.
+The returned object has the same helpers as the module: `getCookie`, `hasCookie`, `getAllCookies`, `getCookies`, `setCookie`, `getJSONCookie`, `setJSONCookie`, `deleteCookie`, `deleteCookies` and `onCookieChange`.
+
+Defaults can also include `encode` / `decode` ([Custom encoding](./encoding)) and the `onCookieChange` polling `interval`.
 
 Options passed to a single call override the defaults. Options set to `undefined` keep the default.
 
@@ -31,6 +33,7 @@ appCookies.setCookie('theme', 'dark'); // writes `myapp_theme`
 appCookies.getCookie('theme'); // reads `myapp_theme`
 appCookies.getAllCookies(); // { theme: 'dark' } — only `myapp_*`, prefix removed
 appCookies.deleteCookies('*'); // deletes only `myapp_*` cookies
+appCookies.onCookieChange('*', ({ name }) => {}); // only `myapp_*`, prefix removed
 ```
 
 ::: info

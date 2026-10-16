@@ -8,7 +8,7 @@ import { getCookie } from 'browser-cookie-utils';
 getCookie('theme'); // 'dark', or null if not found
 ```
 
-The value is URI-decoded. If it isn't valid URI encoding (e.g. written by other code), the raw value is returned instead of throwing.
+The value is URI-decoded. If it isn't valid URI encoding (e.g. written by other code), the raw value is returned instead of throwing. To read values in another format, pass a `decode` function — see [Custom encoding](./encoding).
 
 ## Does it exist? <Badge type="tip" text="2.1.0+" />
 

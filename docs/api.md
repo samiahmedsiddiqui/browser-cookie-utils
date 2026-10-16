@@ -4,13 +4,15 @@ All functions are safe to call without a browser: they do nothing and return `nu
 
 ## Reading
 
-### `getCookie(name)`
+### `getCookie(name, options?)`
 
 Returns the decoded value, or `null` if not found.
 
 ```ts
-getCookie(name: string): string | null
+getCookie(name: string, options?: CookieReadOptions): string | null
 ```
+
+`options.decode` replaces `decodeURIComponent`. <Badge type="tip" text="2.2.0+" /> It also works on `getAllCookies`, `getCookies` and `getJSONCookie`. See [Custom encoding](./guide/encoding).
 
 ### `hasCookie(name)` <Badge type="tip" text="2.1.0+" />
 
@@ -25,7 +27,7 @@ hasCookie(name: string): boolean
 Every cookie visible to JavaScript.
 
 ```ts
-getAllCookies(): Record<string, string>
+getAllCookies(options?: CookieReadOptions): Record<string, string>
 ```
 
 ### `getCookies(pattern)` <Badge type="tip" text="2.1.0+" />
@@ -33,7 +35,7 @@ getAllCookies(): Record<string, string>
 Cookies whose name matches a glob (`*`, `?`), RegExp or predicate.
 
 ```ts
-getCookies(pattern: string | RegExp | ((name: string) => boolean)): Record<string, string>
+getCookies(pattern: string | RegExp | ((name: string) => boolean), options?: CookieReadOptions): Record<string, string>
 ```
 
 ### `getJSONCookie(name)` <Badge type="tip" text="2.1.0+" />
@@ -41,7 +43,7 @@ getCookies(pattern: string | RegExp | ((name: string) => boolean)): Record<strin
 Parsed JSON value, or `null` if missing or invalid. `__proto__` keys are dropped.
 
 ```ts
-getJSONCookie<T = unknown>(name: string): T | null
+getJSONCookie<T = unknown>(name: string, options?: CookieReadOptions): T | null
 ```
 
 ## Writing
@@ -65,6 +67,7 @@ setCookie(name: string, value: string | number | boolean, options?: SetCookieOpt
 | `sameSite`    | `'Lax' \| 'Strict' \| 'None'` | `'Lax'` (`'None'` with `partitioned`) |
 | `secure`      | `boolean`                     | `true` on HTTPS                       |
 | `partitioned` | `boolean`                     | `false`                               |
+| `encode`      | `(value, name) => string`     | `encodeURIComponent` (2.2.0+)         |
 
 See [Setting cookies](./guide/setting-cookies) for details.
 
@@ -97,6 +100,22 @@ deleteCookies(pattern: CookieNamePattern, options?: DeleteCookiesOptions): strin
 ```
 
 Options: `domains`, `paths`, `sameSite`, `secure`, `partitioned`.
+
+## Watching
+
+### `onCookieChange(pattern, callback, options?)` <Badge type="tip" text="2.2.0+" />
+
+Calls `callback` when a matching cookie is created, changed or deleted. Uses the Cookie Store `change` event where available, otherwise polls every `interval` ms. Returns a function that stops watching.
+
+```ts
+onCookieChange(
+	pattern: CookieNamePattern,
+	callback: (change: { name: string; value: string | null; oldValue: string | null }) => void,
+	options?: { interval?: number; decode?: (value: string, name: string) => string }
+): () => void
+```
+
+`interval` defaults to `1000` and is clamped to `100`–`2147483647`. See [Watching cookies](./guide/watching-cookies).
 
 ## Factory
 

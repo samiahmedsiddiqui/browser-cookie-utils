@@ -613,3 +613,107 @@ test.describe('createCookieUtils', () => {
 		expect(await context.cookies()).toHaveLength(0);
 	});
 });
+
+test.describe('encode / decode', () => {
+	test('reads and writes values in another encoding', async ({
+		page,
+		context
+	}) => {
+		await open(page, LOCALHOST);
+
+		const result = await page.evaluate(() => {
+			const legacy = window.cookieUtils.createCookieUtils({
+				encode: (value) => escape(value),
+				decode: (value) => unescape(value)
+			});
+
+			return {
+				set: legacy.setCookie('php', 'café'),
+				read: legacy.getCookie('php'),
+				unsafe: window.cookieUtils.setCookie('x', '1', {
+					encode: () => '1; path=/admin'
+				})
+			};
+		});
+
+		expect(result).toEqual({ set: true, read: 'café', unsafe: false });
+		expect((await storedOne(context, 'php')).value).toBe('caf%E9');
+		expect(await stored(context, 'x')).toHaveLength(0);
+	});
+});
+
+test.describe('onCookieChange', () => {
+	/**
+	 * Watches `theme`, then creates, changes and deletes it.
+	 *
+	 * @param {import('@playwright/test').Page} page - Page.
+	 *
+	 * @returns {Promise<Object>} - Whether the Cookie Store was used, and the changes.
+	 */
+	const watchTheme = (page) =>
+		page.evaluate(async () => {
+			const utils = window.cookieUtils;
+			const changes = [];
+			const settle = () => new Promise((resolve) => setTimeout(resolve, 300));
+			const stop = utils.onCookieChange(
+				'theme',
+				(change) => changes.push(change),
+				{ interval: 100 }
+			);
+
+			utils.setCookie('other', '1');
+			utils.setCookie('theme', 'dark');
+			await settle();
+			utils.setCookie('theme', 'light');
+			await settle();
+			utils.deleteCookie('theme');
+			await settle();
+			stop();
+			utils.setCookie('theme', 'after stop');
+			await settle();
+
+			return { cookieStore: 'cookieStore' in window, changes };
+		});
+
+	const expected = [
+		{ name: 'theme', value: 'dark', oldValue: null },
+		{ name: 'theme', value: 'light', oldValue: 'dark' },
+		{ name: 'theme', value: null, oldValue: 'light' }
+	];
+
+	test('reports changes over https', async ({ page }) => {
+		await open(page, SECURE);
+
+		const { changes } = await watchTheme(page);
+		expect(changes).toEqual(expected);
+	});
+
+	test('falls back to polling on plain http', async ({ page }) => {
+		await open(page, INSECURE);
+
+		const { cookieStore, changes } = await watchTheme(page);
+		expect(cookieStore).toBe(false);
+		expect(changes).toEqual(expected);
+	});
+
+	test('reports cookies changed outside the page', async ({
+		page,
+		context
+	}) => {
+		await open(page, SECURE);
+		await page.evaluate(() => {
+			window.changes = [];
+			window.cookieUtils.onCookieChange(
+				'srv_*',
+				(change) => window.changes.push(change),
+				{ interval: 100 }
+			);
+		});
+
+		await context.addCookies([{ name: 'srv_a', value: '1', url: SECURE }]);
+
+		await expect
+			.poll(() => page.evaluate(() => window.changes))
+			.toEqual([{ name: 'srv_a', value: '1', oldValue: null }]);
+	});
+});

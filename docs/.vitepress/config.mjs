@@ -34,6 +34,8 @@ export default defineConfig({
 					{ text: 'Reading cookies', link: '/guide/reading-cookies' },
 					{ text: 'Deleting cookies', link: '/guide/deleting-cookies' },
 					{ text: 'JSON cookies', link: '/guide/json-cookies' },
+					{ text: 'Watching cookies', link: '/guide/watching-cookies' },
+					{ text: 'Custom encoding', link: '/guide/encoding' },
 					{ text: 'Default options', link: '/guide/default-options' }
 				]
 			},
