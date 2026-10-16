@@ -36,6 +36,9 @@
 		"format": "prettier --write \"src/**/*.{js,ts}\" \"test/**/*.js\" build.js eslint.config.js",
 		"format:check": "prettier --check \"src/**/*.{js,ts}\" \"test/**/*.js\" build.js eslint.config.js",
 		"build": "node build.js",
+		"docs:dev": "vitepress dev docs",
+		"docs:build": "vitepress build docs",
+		"docs:preview": "vitepress preview docs",
 		"test": "npm run build && node --test test/*.test.js",
 		"test:coverage": "npm run build && node --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-lines=100 --test-coverage-functions=100 --test-coverage-branches=98 test/*.test.js",
 		"prepublishOnly": "npm run lint && npm test"
@@ -59,7 +62,7 @@
 	"bugs": {
 		"url": "https://github.com/samiahmedsiddiqui/browser-cookie-utils/issues"
 	},
-	"homepage": "https://github.com/samiahmedsiddiqui/browser-cookie-utils#readme",
+	"homepage": "https://samiahmedsiddiqui.github.io/browser-cookie-utils/",
 	"devDependencies": {
 		"@eslint/js": "10.0.1",
 		"eslint": "10.12.0",
@@ -67,6 +70,7 @@
 		"eslint-plugin-prettier": "5.5.7",
 		"globals": "17.13.0",
 		"prettier": "3.9.10",
-		"terser": "5.51.2"
+		"terser": "5.51.2",
+		"vitepress": "1.6.4"
 	}
 }

@@ -7,6 +7,8 @@
 
 Lightweight, dependency-free JavaScript helpers for getting, setting, and deleting browser cookies safely and consistently in modern browsers.
 
+📖 **Documentation:** https://samiahmedsiddiqui.github.io/browser-cookie-utils/ · 🗺️ [Roadmap](https://samiahmedsiddiqui.github.io/browser-cookie-utils/roadmap)
+
 ## Features
 
 - Zero runtime dependencies
