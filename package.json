@@ -33,8 +33,8 @@
 	"scripts": {
 		"lint": "eslint .",
 		"lint:fix": "eslint . --fix",
-		"format": "prettier --write \"src/**/*.{js,ts}\" \"test/**/*.js\" build.js",
-		"format:check": "prettier --check \"src/**/*.{js,ts}\" \"test/**/*.js\" build.js",
+		"format": "prettier --write \"src/**/*.{js,ts}\" \"test/**/*.js\" build.js eslint.config.js",
+		"format:check": "prettier --check \"src/**/*.{js,ts}\" \"test/**/*.js\" build.js eslint.config.js",
 		"build": "node build.js",
 		"test": "npm run build && node --test test/browser-cookie-utils.test.js",
 		"prepublishOnly": "npm run lint && npm test"
@@ -60,10 +60,12 @@
 	},
 	"homepage": "https://github.com/samiahmedsiddiqui/browser-cookie-utils#readme",
 	"devDependencies": {
-		"eslint": "9.39.2",
+		"@eslint/js": "10.0.1",
+		"eslint": "10.12.0",
 		"eslint-config-prettier": "10.1.8",
-		"eslint-plugin-prettier": "5.5.4",
-		"prettier": "3.7.4",
-		"terser": "5.44.1"
+		"eslint-plugin-prettier": "5.5.7",
+		"globals": "17.13.0",
+		"prettier": "3.9.10",
+		"terser": "5.51.2"
 	}
 }
