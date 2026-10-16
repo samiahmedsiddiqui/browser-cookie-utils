@@ -168,20 +168,39 @@ setCookie('user', 'sami', {
 
 #### Available options
 
-| Option       | Type       | Default          | Description                                   |
-| ------------ | ---------- | ---------------- | --------------------------------------------- |
-| `timeToLive` | `number`   | `1`              | Expiration duration                           |
-| `unit`       | `string`   | `hour`           | `second` … `year` (see above)                 |
-| `expires`    | `Date`     | —                | Exact expiry; overrides `timeToLive` / `unit` |
-| `session`    | `boolean`  | `false`          | No expiry; overrides `expires`                |
-| `domains`    | `string[]` | current hostname | Domains to set cookie on                      |
-| `path`       | `string`   | `/`              | Cookie path                                   |
-| `sameSite`   | `string`   | `Lax`            | `Lax`, `Strict`, `None`                       |
-| `secure`     | `boolean`  | auto             | Forced Secure flag                            |
+| Option        | Type       | Default          | Description                                   |
+| ------------- | ---------- | ---------------- | --------------------------------------------- |
+| `timeToLive`  | `number`   | `1`              | Expiration duration                           |
+| `unit`        | `string`   | `hour`           | `second` … `year` (see above)                 |
+| `expires`     | `Date`     | —                | Exact expiry; overrides `timeToLive` / `unit` |
+| `session`     | `boolean`  | `false`          | No expiry; overrides `expires`                |
+| `domains`     | `string[]` | current hostname | Domains to set cookie on                      |
+| `path`        | `string`   | `/`              | Cookie path                                   |
+| `sameSite`    | `string`   | `Lax`            | `Lax`, `Strict`, `None`                       |
+| `secure`      | `boolean`  | auto             | Forced Secure flag                            |
+| `partitioned` | `boolean`  | `false`          | Adds `Partitioned` (CHIPS); forces `Secure`   |
 
 > The `domain` attribute is skipped for `localhost` and IP addresses (browsers reject it there), so a host-only cookie is set instead.
 
 > Cookie names must be valid RFC 6265 tokens (no spaces, `;`, `=`, etc.). Invalid names are ignored.
+
+### Partitioned cookies (CHIPS)
+
+For third-party embeds (widgets, iframes) in browsers that block third-party cookies:
+
+```js
+import { setCookie, deleteCookie } from 'browser-cookie-utils';
+
+setCookie('__Host-widget', 'abc', {
+	sameSite: 'None',
+	partitioned: true
+});
+
+// Deleting a partitioned cookie needs `partitioned: true` too.
+deleteCookie('__Host-widget', { sameSite: 'None', partitioned: true });
+```
+
+The cookie is stored separately for each top-level site the embed appears on. `Secure` is always added. Browsers without CHIPS support ignore the attribute.
 
 ### Cookie prefixes (`__Secure-` / `__Host-`)
 

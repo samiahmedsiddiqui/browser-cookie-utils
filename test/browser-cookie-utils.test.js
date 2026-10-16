@@ -244,6 +244,36 @@ test('deleteCookies only tries host-only path=/ for __Host- cookies', () => {
 	assert.equal(written.length - hostWrites.length, 9);
 });
 
+test('setCookie adds Partitioned and forces Secure', () => {
+	mockBrowser({ protocol: 'http:' });
+	setCookie('embed', '1', { partitioned: true, sameSite: 'None' });
+
+	assert.match(written[0], /; secure; samesite=None; partitioned$/);
+});
+
+test('setCookie omits Partitioned by default', () => {
+	setCookie('a', '1');
+	setCookie('b', '1', { partitioned: 'yes' });
+
+	written.forEach((cookie) => assert.doesNotMatch(cookie, /partitioned/));
+});
+
+test('deleteCookie and deleteCookies pass Partitioned through', () => {
+	document.setJar('embed=1', ['embed']);
+
+	deleteCookie('embed', { partitioned: true });
+	deleteCookies('embed', {
+		partitioned: true,
+		domains: ['example.com'],
+		paths: ['/']
+	});
+
+	assert.equal(written.length, 2);
+	written.forEach((cookie) =>
+		assert.match(cookie, /; secure; samesite=Lax; partitioned$/)
+	);
+});
+
 test('setCookie falls back to hours for an unknown unit', () => {
 	setCookie('theme', 'dark', { timeToLive: 2, unit: 'fortnight' });
 
