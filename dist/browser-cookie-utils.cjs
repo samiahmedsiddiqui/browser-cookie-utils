@@ -36,6 +36,26 @@ function isValidName(name) {
 }
 
 /**
+ * Returns the rules browsers enforce for prefixed cookie names (matched
+ * case-insensitively):
+ * - `__Secure-`: must be `Secure`.
+ * - `__Host-`: must be `Secure`, `path=/` and host-only (no domain).
+ *
+ * @param {string} name - Cookie name.
+ *
+ * @returns {{secure: boolean, hostOnly: boolean}}
+ */
+function prefixRules(name) {
+	const lowerName = name.toLowerCase();
+	const hostOnly = lowerName.startsWith('__host-');
+
+	return {
+		secure: hostOnly || lowerName.startsWith('__secure-'),
+		hostOnly
+	};
+}
+
+/**
  * Builds the `; domain=...` attribute for a domain.
  *
  * IP addresses and single-label hosts (e.g. `localhost`) can't be used as a
@@ -365,12 +385,20 @@ function setCookie(name, value, options = {}) {
 		secure = window.location.protocol === 'https:'
 	} = options;
 
+	const prefix = prefixRules(name);
 	const encodedValue = encodeURIComponent(value == null ? '' : String(value));
 	const expiry = expiryAttribute({ session, expires, timeToLive, unit });
-	const attributes = commonAttributes({ path, secure, sameSite });
+	const attributes = commonAttributes({
+		path: prefix.hostOnly ? '/' : path,
+		secure: secure || prefix.secure,
+		sameSite
+	});
+	const domainAttributes = prefix.hostOnly
+		? ['']
+		: resolveDomains(domains).map(domainAttribute);
 
-	resolveDomains(domains).forEach((domain) => {
-		document.cookie = `${name}=${encodedValue}${expiry}${domainAttribute(domain)}${attributes}`;
+	domainAttributes.forEach((domain) => {
+		document.cookie = `${name}=${encodedValue}${expiry}${domain}${attributes}`;
 	});
 }
 
@@ -434,10 +462,18 @@ function deleteCookie(name, options = {}) {
 		secure = window.location.protocol === 'https:',
 		sameSite = 'Lax'
 	} = options;
-	const attributes = commonAttributes({ path, secure, sameSite });
+	const prefix = prefixRules(name);
+	const attributes = commonAttributes({
+		path: prefix.hostOnly ? '/' : path,
+		secure: secure || prefix.secure,
+		sameSite
+	});
+	const domainAttributes = prefix.hostOnly
+		? ['']
+		: resolveDomains(domains).map(domainAttribute);
 
-	resolveDomains(domains).forEach((domain) => {
-		expireCookie(name, domainAttribute(domain), attributes);
+	domainAttributes.forEach((domain) => {
+		expireCookie(name, domain, attributes);
 	});
 }
 
@@ -487,12 +523,20 @@ function deleteCookies(pattern, options = {}) {
 	].filter((cookieName) => isValidName(cookieName) && matches(cookieName));
 
 	names.forEach((cookieName) => {
-		[...new Set(domainAttributes)].forEach((domain) => {
-			cookiePaths.forEach((path) => {
+		const prefix = prefixRules(cookieName);
+		const nameDomains = prefix.hostOnly ? [''] : [...new Set(domainAttributes)];
+		const namePaths = prefix.hostOnly ? ['/'] : cookiePaths;
+
+		nameDomains.forEach((domain) => {
+			namePaths.forEach((path) => {
 				expireCookie(
 					cookieName,
 					domain,
-					commonAttributes({ path, secure, sameSite })
+					commonAttributes({
+						path,
+						secure: secure || prefix.secure,
+						sameSite
+					})
 				);
 			});
 		});

@@ -190,6 +190,60 @@ test('setCookie creates session cookies', () => {
 	);
 });
 
+test('setCookie forces Secure for __Secure- cookies', () => {
+	mockBrowser({ protocol: 'http:' });
+	setCookie('__Secure-id', '1', { secure: false, path: '/app' });
+
+	assert.equal(
+		written[0],
+		'__Secure-id=1; max-age=3600; domain=.www.example.com; path=/app; secure; samesite=Lax'
+	);
+});
+
+test('setCookie makes __Host- cookies host-only, Secure and path=/', () => {
+	setCookie('__Host-id', '1', {
+		domains: ['example.com', 'example.org'],
+		path: '/app',
+		secure: false
+	});
+
+	assert.deepEqual(written, [
+		'__Host-id=1; max-age=3600; path=/; secure; samesite=Lax'
+	]);
+});
+
+test('cookie prefixes are matched case-insensitively', () => {
+	setCookie('__host-a', '1', { secure: false });
+	setCookie('__SECURE-b', '1', { secure: false });
+
+	assert.match(written[0], /^__host-a=1; max-age=3600; path=\/; secure;/);
+	assert.match(written[1], /; secure; samesite=Lax$/);
+});
+
+test('deleteCookie applies prefix rules', () => {
+	deleteCookie('__Host-id', { domains: ['example.com'], path: '/app' });
+
+	assert.deepEqual(written, [
+		'__Host-id=; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; secure; samesite=Lax'
+	]);
+});
+
+test('deleteCookies only tries host-only path=/ for __Host- cookies', () => {
+	mockBrowser({ hostname: 'app.example.com', pathname: '/a/b' });
+	document.setJar('__Host-id=1; other=1', ['__Host-id', 'other']);
+
+	deleteCookies('*');
+
+	const hostWrites = written.filter((cookie) =>
+		cookie.startsWith('__Host-id=')
+	);
+
+	assert.deepEqual(hostWrites, [
+		'__Host-id=; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; secure; samesite=Lax'
+	]);
+	assert.equal(written.length - hostWrites.length, 9);
+});
+
 test('setCookie falls back to hours for an unknown unit', () => {
 	setCookie('theme', 'dark', { timeToLive: 2, unit: 'fortnight' });
 
