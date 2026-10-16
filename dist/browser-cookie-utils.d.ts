@@ -84,3 +84,27 @@ export function deleteCookies(
 	pattern: CookieNamePattern,
 	options?: DeleteCookiesOptions
 ): string[];
+
+export interface CookieUtilsDefaults
+	extends SetCookieOptions, Pick<DeleteCookiesOptions, 'paths'> {
+	/** Prefix added to every cookie name, e.g. `myapp_`. */
+	namePrefix?: string;
+}
+
+export interface CookieUtils {
+	getCookie: typeof getCookie;
+	hasCookie: typeof hasCookie;
+	getAllCookies: typeof getAllCookies;
+	getCookies: typeof getCookies;
+	setCookie: typeof setCookie;
+	getJSONCookie: typeof getJSONCookie;
+	setJSONCookie: typeof setJSONCookie;
+	deleteCookie: typeof deleteCookie;
+	deleteCookies: typeof deleteCookies;
+}
+
+/**
+ * Creates the cookie helpers with default options and an optional name
+ * prefix. Options passed to a single call override the defaults.
+ */
+export function createCookieUtils(defaults?: CookieUtilsDefaults): CookieUtils;

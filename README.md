@@ -369,6 +369,39 @@ deleteCookies('session_*', {
 > When using the UMD build via a `<script>` tag, replace imported functions with
 > `browserCookieUtils.*`.
 
+## Default options (`createCookieUtils`)
+
+Create the helpers once with your defaults instead of repeating them in every call:
+
+```js
+import { createCookieUtils } from 'browser-cookie-utils';
+
+const cookies = createCookieUtils({
+	domains: ['example.com'],
+	sameSite: 'Strict',
+	unit: 'day'
+});
+
+cookies.setCookie('theme', 'dark'); // uses the defaults
+cookies.setCookie('lang', 'en', { sameSite: 'Lax' }); // overrides one option
+cookies.deleteCookie('theme');
+```
+
+The returned object has the same helpers as the module (`getCookie`, `hasCookie`, `getAllCookies`, `getCookies`, `setCookie`, `getJSONCookie`, `setJSONCookie`, `deleteCookie`, `deleteCookies`). Options passed to a single call override the defaults.
+
+### Name prefix
+
+Use `namePrefix` to keep your app's cookies separate from others on the same domain:
+
+```js
+const appCookies = createCookieUtils({ namePrefix: 'myapp_' });
+
+appCookies.setCookie('theme', 'dark'); // writes `myapp_theme`
+appCookies.getCookie('theme'); // reads `myapp_theme`
+appCookies.getAllCookies(); // { theme: 'dark' } — only `myapp_*`, prefix removed
+appCookies.deleteCookies('*'); // deletes only `myapp_*` cookies
+```
+
 ## Migration Guide (v1.x → v2.0.0)
 
 Version `2.0.0` introduces a **breaking API change** to improve flexibility and align with modern browser cookie requirements.
