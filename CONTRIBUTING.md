@@ -31,6 +31,7 @@
 - One feature or fix per pull request, branched from `main`.
 - Branch names: `feat/...`, `fix/...`, `docs/...`, `ci/...`.
 - Before pushing: `npm run lint && npm run format:check && npm test`.
+- Browser behavior (domains, paths, `Secure`, prefixes, limits) is tested in real browsers with `npm run test:browser` (Playwright, `test/browser/`). Install the browsers once with `npx playwright install chromium firefox webkit`. CI runs these tests in a separate job.
 - Don't bump the version in feature PRs; releases are done separately.
 
 ## Commits

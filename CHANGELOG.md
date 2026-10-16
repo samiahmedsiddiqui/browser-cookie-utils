@@ -27,6 +27,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Real-browser tests (Playwright: Chromium, Firefox, WebKit) run in CI with `npm run test:browser`. They check what browsers actually store: domains, paths, `Secure`, `SameSite`, prefixes, partitioned cookies, size and expiry limits.
 - `createCookieUtils(defaults)` returns the helpers with default options and an optional `namePrefix`.
 - `setCookie` and `setJSONCookie` return `true` if the cookie can be read back afterwards; `deleteCookie` returns `true` if the cookie is gone.
 - `partitioned` option on `setCookie`, `deleteCookie` and `deleteCookies` adds the `Partitioned` (CHIPS) attribute and forces `Secure`.
