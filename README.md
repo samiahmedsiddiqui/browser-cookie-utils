@@ -205,13 +205,10 @@ For third-party embeds (widgets, iframes) in browsers that block third-party coo
 ```js
 import { setCookie, deleteCookie } from 'browser-cookie-utils';
 
-setCookie('__Host-widget', 'abc', {
-	sameSite: 'None',
-	partitioned: true
-});
+setCookie('__Host-widget', 'abc', { partitioned: true }); // SameSite=None by default
 
 // Deleting a partitioned cookie needs `partitioned: true` too.
-deleteCookie('__Host-widget', { sameSite: 'None', partitioned: true });
+deleteCookie('__Host-widget', { partitioned: true });
 ```
 
 The cookie is stored separately for each top-level site the embed appears on. `Secure` is always added. Browsers without CHIPS support ignore the attribute.
@@ -334,6 +331,8 @@ deleteCookie('user', {
 
 > ⚠️ For deletion to succeed, `domains` and `path` **must match** the ones used when the cookie was set.
 
+Without `domains`, `deleteCookie` removes both the host-only cookie and the domain cookie for the current hostname.
+
 `deleteCookie` returns `true` if no cookie with that name is readable afterwards, so you can detect a mismatch.
 
 ## Delete cookies by pattern
@@ -346,6 +345,8 @@ deleteCookies(/^utm_/); // RegExp
 deleteCookies((name) => name.startsWith('tmp_')); // predicate
 deleteCookies('*'); // every cookie visible to JavaScript
 ```
+
+Paths are tried with and without a trailing slash (`/a`, `/a/`).
 
 Returns an array with the names of matching cookies that **still exist** afterwards (an empty array means everything matched was deleted).
 
@@ -456,11 +457,21 @@ If you need the old behavior, continue using `v1.x`, which remains stable.
 
 ## Security behavior
 
-- Automatically adds `Secure` on HTTPS and whenever `SameSite=None`
-- Supports modern `SameSite` rules
-- Uses `encodeURIComponent` / `decodeURIComponent`
-- Sets `path=/` by default
+- Automatically adds `Secure` on HTTPS, with `SameSite=None` and with `Partitioned`
+- Values are encoded with `encodeURIComponent`, so they can't add attributes
+- `sameSite` only accepts `Lax`, `Strict` or `None`; anything else becomes `Lax`
+- `path` must start with `/` and can't contain spaces, control characters or `;`. Nothing is written for an unsafe path
+- Invalid `domains` are skipped. If none is usable, nothing is written and `setCookie` returns `false`
+- Glob patterns (`*`, `?`) are matched in linear time. **RegExp patterns you pass are run as-is**, so avoid patterns that can backtrack heavily (e.g. `/^(a+)+$/`)
+- `getJSONCookie` drops `__proto__` keys, so merging the result can't change prototypes
+- Lifetimes are capped at 400 days, the limit browsers enforce
 - Does **not** set `HttpOnly` (not possible via JavaScript)
+
+### Recommendations
+
+- **Don't store secrets** (session tokens, credentials) in cookies set from JavaScript. Any script on the page can read them. Set them server-side with `HttpOnly`.
+- **Subdomains:** by default the cookie is set on the current hostname as a domain cookie, so its subdomains can read it too. For a cookie only the current host can see, use the `__Host-` prefix.
+- **Cookie tossing:** a sibling subdomain can set a same-name cookie on the parent domain, and `getCookie` may return it. Treat cookie values as untrusted input, and use `__Host-` names for anything security-sensitive.
 
 ## Browser support
 

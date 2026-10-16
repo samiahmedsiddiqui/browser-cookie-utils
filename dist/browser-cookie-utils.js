@@ -11,6 +11,9 @@ const UNIT_TO_SECONDS = {
 	year: 365 * 24 * 60 * 60
 };
 
+// Browsers cap cookie lifetimes at 400 days.
+const MAX_AGE_LIMIT = 400 * 24 * 60 * 60;
+
 /**
  * Checks whether cookies can be accessed (i.e. running in a browser).
  *
@@ -56,27 +59,87 @@ function prefixRules(name) {
 }
 
 /**
+ * Checks for characters that would break or inject cookie attributes:
+ * control characters, spaces, DEL and `;`.
+ *
+ * @param {string} value - Attribute value.
+ *
+ * @returns {boolean}
+ */
+function hasUnsafeChars(value) {
+	for (let i = 0; i < value.length; i++) {
+		const code = value.charCodeAt(i);
+
+		if (code <= 0x20 || code === 0x7f || value[i] === ';') return true;
+	}
+
+	return false;
+}
+
+/**
+ * Checks whether a path can be used as a cookie path.
+ *
+ * @param {*} path - Path option.
+ *
+ * @returns {boolean}
+ */
+function isValidPath(path) {
+	return typeof path === 'string' && path[0] === '/' && !hasUnsafeChars(path);
+}
+
+/**
+ * Checks whether a hostname is an IP address or a single label (e.g.
+ * `localhost`), which can't be used as a cookie domain.
+ *
+ * @param {string} host - Hostname without a leading dot.
+ *
+ * @returns {boolean}
+ */
+function isHostOnlyHost(host) {
+	return (
+		!host.includes('.') ||
+		/^\d{1,3}(\.\d{1,3}){3}$/.test(host) ||
+		host.includes(':') ||
+		host[0] === '['
+	);
+}
+
+/**
  * Builds the `; domain=...` attribute for a domain.
  *
  * IP addresses and single-label hosts (e.g. `localhost`) can't be used as a
- * cookie domain, so the attribute is omitted and a host-only cookie is set.
+ * cookie domain; for the current host a host-only cookie is used instead.
  *
  * @param {string} domain - Domain name.
  *
- * @returns {string}
+ * @returns {string|null} - The attribute, `''` for host-only, or null if the
+ *   domain is invalid (nothing should be written for it).
  */
 function domainAttribute(domain) {
-	if (!domain || typeof domain !== 'string') return '';
+	if (typeof domain !== 'string' || domain.length === 0) return null;
 
-	const host = domain.replace(/^\./, '');
-	const isIPv4 = /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
-	const isIPv6 = host.includes(':') || host.startsWith('[');
+	const host = domain.replace(/^\./, '').toLowerCase();
 
-	if (!host.includes('.') || isIPv4 || isIPv6 || /[;\s]/.test(host)) {
-		return '';
+	if (isHostOnlyHost(host)) {
+		return host === window.location.hostname.toLowerCase() ? '' : null;
 	}
 
+	if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(host)) return null;
+
 	return `; domain=.${host}`;
+}
+
+/**
+ * Converts domains into unique, valid domain attributes.
+ *
+ * @param {string[]} domains - Domain names.
+ *
+ * @returns {string[]}
+ */
+function domainAttributes(domains) {
+	return [
+		...new Set(domains.map(domainAttribute).filter((domain) => domain !== null))
+	];
 }
 
 /**
@@ -95,6 +158,24 @@ function resolveDomains(domains) {
 }
 
 /**
+ * Normalizes a SameSite value so it can't inject other attributes.
+ *
+ * @param {*} sameSite - SameSite option.
+ *
+ * @returns {string} - `Lax`, `Strict`, `None`, or empty to omit the attribute.
+ */
+function normalizeSameSite(sameSite) {
+	if (!sameSite) return '';
+
+	const value = typeof sameSite === 'string' ? sameSite.toLowerCase() : '';
+
+	if (value === 'strict') return 'Strict';
+	if (value === 'none') return 'None';
+
+	return 'Lax';
+}
+
+/**
  * Builds the shared path / secure / samesite / partitioned attributes.
  *
  * @param {Object} attributes - path, secure, sameSite and partitioned values.
@@ -104,20 +185,19 @@ function resolveDomains(domains) {
 function commonAttributes({ path, secure, sameSite, partitioned }) {
 	let attributes = '';
 
-	if (path && typeof path === 'string' && !/[;\s]/.test(path)) {
+	if (isValidPath(path)) {
 		attributes += `; path=${path}`;
 	}
 
-	// Browsers reject `SameSite=None` and `Partitioned` cookies that aren't `Secure`.
-	const isSameSiteNone =
-		typeof sameSite === 'string' && sameSite.toLowerCase() === 'none';
+	const sameSiteValue = normalizeSameSite(sameSite);
 
-	if (secure || isSameSiteNone || partitioned === true) {
+	// Browsers reject `SameSite=None` and `Partitioned` cookies that aren't `Secure`.
+	if (secure || sameSiteValue === 'None' || partitioned === true) {
 		attributes += '; secure';
 	}
 
-	if (sameSite) {
-		attributes += `; samesite=${sameSite}`;
+	if (sameSiteValue) {
+		attributes += `; samesite=${sameSiteValue}`;
 	}
 
 	if (partitioned === true) {
@@ -216,6 +296,43 @@ function isReadable(name, rawValue) {
 }
 
 /**
+ * Matches a name against a glob (`*` = any characters, `?` = one character).
+ *
+ * Uses a greedy two-pointer scan instead of a RegExp, so patterns with many
+ * `*` can't cause catastrophic backtracking.
+ *
+ * @param {string} pattern - Glob pattern.
+ * @param {string} name - Name to test.
+ *
+ * @returns {boolean}
+ */
+function globMatch(pattern, name) {
+	let p = 0;
+	let n = 0;
+	let starP = -1;
+	let starN = 0;
+
+	while (n < name.length) {
+		if (p < pattern.length && (pattern[p] === '?' || pattern[p] === name[n])) {
+			p++;
+			n++;
+		} else if (p < pattern.length && pattern[p] === '*') {
+			starP = p++;
+			starN = n;
+		} else if (starP !== -1) {
+			p = starP + 1;
+			n = ++starN;
+		} else {
+			return false;
+		}
+	}
+
+	while (p < pattern.length && pattern[p] === '*') p++;
+
+	return p === pattern.length;
+}
+
+/**
  * Converts a name pattern into a matcher function.
  *
  * @param {string|RegExp|Function} pattern - Glob string (`*`, `?`), RegExp or predicate.
@@ -235,13 +352,7 @@ function toMatcher(pattern) {
 	}
 
 	if (typeof pattern === 'string' && pattern.length > 0) {
-		const source = pattern
-			.replace(/[.+^${}()|[\]\\]/g, '\\$&')
-			.replace(/\*/g, '.*')
-			.replace(/\?/g, '.');
-		const regex = new RegExp(`^${source}$`);
-
-		return (name) => regex.test(name);
+		return (name) => globMatch(pattern, name);
 	}
 
 	return null;
@@ -254,8 +365,11 @@ function toMatcher(pattern) {
  * @returns {string[]}
  */
 function candidateDomains() {
-	const labels = window.location.hostname.split('.');
+	const hostname = window.location.hostname;
+	const labels = hostname.split('.');
 	const domains = [];
+
+	if (isHostOnlyHost(hostname)) return domains;
 
 	for (let i = 0; i < labels.length - 1; i++) {
 		domains.push(labels.slice(i).join('.'));
@@ -265,8 +379,8 @@ function candidateDomains() {
 }
 
 /**
- * Returns `/` and every prefix of the current path, e.g.
- * `/a/b` -> `/`, `/a`, `/a/b`.
+ * Returns `/` and every prefix of the current path, with and without a
+ * trailing slash, e.g. `/a/b` -> `/`, `/a`, `/a/`, `/a/b`, `/a/b/`.
  *
  * @returns {string[]}
  */
@@ -275,10 +389,11 @@ function candidatePaths() {
 	const paths = ['/'];
 
 	for (let i = 1; i <= segments.length; i++) {
-		paths.push(`/${segments.slice(0, i).join('/')}`);
+		const path = `/${segments.slice(0, i).join('/')}`;
+		paths.push(path, `${path}/`);
 	}
 
-	return paths;
+	return paths.filter(isValidPath);
 }
 
 /**
@@ -309,14 +424,24 @@ function expiryAttribute({ session, expires, timeToLive, unit }) {
 	}
 
 	let ttl = 1;
-	if (typeof timeToLive === 'number' && timeToLive > 0) {
+	if (Number.isFinite(timeToLive) && timeToLive > 0) {
 		ttl = timeToLive;
 	}
 
-	const unitSeconds = UNIT_TO_SECONDS[unit] || UNIT_TO_SECONDS.hour;
+	const unitSeconds = Object.prototype.hasOwnProperty.call(
+		UNIT_TO_SECONDS,
+		unit
+	)
+		? UNIT_TO_SECONDS[unit]
+		: UNIT_TO_SECONDS.hour;
 
-	// At least 1 second; `max-age=0` would delete the cookie instead.
-	return `; max-age=${Math.max(1, Math.round(ttl * unitSeconds))}`;
+	// At least 1 second (`max-age=0` deletes); at most the browser limit.
+	const maxAge = Math.min(
+		MAX_AGE_LIMIT,
+		Math.max(1, Math.round(ttl * unitSeconds))
+	);
+
+	return `; max-age=${maxAge}`;
 }
 
 /**
@@ -403,25 +528,33 @@ function setCookie(name, value, options = {}) {
 		session = false,
 		domains = [],
 		path = '/',
-		sameSite = 'Lax',
-		secure = window.location.protocol === 'https:',
-		partitioned = false
+		partitioned = false,
+		// Partitioned cookies are for cross-site embeds, which need `None`.
+		sameSite = partitioned === true ? 'None' : 'Lax',
+		secure = window.location.protocol === 'https:'
 	} = options;
 
 	const prefix = prefixRules(name);
+	const cookiePath = prefix.hostOnly ? '/' : path;
+	const cookieDomains = prefix.hostOnly
+		? ['']
+		: domainAttributes(resolveDomains(domains));
+
+	// Never write with an unsafe path or without a usable domain.
+	if (!isValidPath(cookiePath) || cookieDomains.length === 0) {
+		return false;
+	}
+
 	const encodedValue = encodeURIComponent(value == null ? '' : String(value));
 	const expiry = expiryAttribute({ session, expires, timeToLive, unit });
 	const attributes = commonAttributes({
-		path: prefix.hostOnly ? '/' : path,
+		path: cookiePath,
 		secure: secure || prefix.secure,
 		sameSite,
 		partitioned
 	});
-	const domainAttributes = prefix.hostOnly
-		? ['']
-		: resolveDomains(domains).map(domainAttribute);
 
-	domainAttributes.forEach((domain) => {
+	cookieDomains.forEach((domain) => {
 		document.cookie = `${name}=${encodedValue}${expiry}${domain}${attributes}`;
 	});
 
@@ -467,7 +600,10 @@ function getJSONCookie(name) {
 	if (value === null) return null;
 
 	try {
-		return JSON.parse(value);
+		// Drop `__proto__` keys so merging the result can't change prototypes.
+		return JSON.parse(value, (key, parsed) =>
+			key === '__proto__' ? undefined : parsed
+		);
 	} catch {
 		return null;
 	}
@@ -489,22 +625,37 @@ function deleteCookie(name, options = {}) {
 	const {
 		domains = [],
 		path = '/',
-		secure = window.location.protocol === 'https:',
-		sameSite = 'Lax',
-		partitioned = false
+		partitioned = false,
+		sameSite = partitioned === true ? 'None' : 'Lax',
+		secure = window.location.protocol === 'https:'
 	} = options;
 	const prefix = prefixRules(name);
+	const cookiePath = prefix.hostOnly ? '/' : path;
+
+	let cookieDomains;
+	if (prefix.hostOnly) {
+		cookieDomains = [''];
+	} else if (Array.isArray(domains) && domains.length > 0) {
+		cookieDomains = domainAttributes(domains);
+	} else {
+		// Also remove a host-only cookie (e.g. set by the server).
+		cookieDomains = [
+			...new Set(['', ...domainAttributes(resolveDomains(domains))])
+		];
+	}
+
+	if (!isValidPath(cookiePath) || cookieDomains.length === 0) {
+		return false;
+	}
+
 	const attributes = commonAttributes({
-		path: prefix.hostOnly ? '/' : path,
+		path: cookiePath,
 		secure: secure || prefix.secure,
 		sameSite,
 		partitioned
 	});
-	const domainAttributes = prefix.hostOnly
-		? ['']
-		: resolveDomains(domains).map(domainAttribute);
 
-	domainAttributes.forEach((domain) => {
+	cookieDomains.forEach((domain) => {
 		expireCookie(name, domain, attributes);
 	});
 
@@ -534,21 +685,22 @@ function deleteCookies(pattern, options = {}) {
 	const {
 		domains = [],
 		paths = [],
-		secure = window.location.protocol === 'https:',
-		sameSite = 'Lax',
-		partitioned = false
+		partitioned = false,
+		sameSite = partitioned === true ? 'None' : 'Lax',
+		secure = window.location.protocol === 'https:'
 	} = options;
 
-	let domainAttributes;
+	// Invalid domains / paths are skipped; if none are left, nothing is deleted.
+	let cookieDomains;
 	if (Array.isArray(domains) && domains.length > 0) {
-		domainAttributes = domains.map(domainAttribute);
+		cookieDomains = domainAttributes(domains);
 	} else {
-		domainAttributes = ['', ...candidateDomains().map(domainAttribute)];
+		cookieDomains = ['', ...domainAttributes(candidateDomains())];
 	}
 
 	let cookiePaths;
 	if (Array.isArray(paths) && paths.length > 0) {
-		cookiePaths = paths;
+		cookiePaths = paths.filter(isValidPath);
 	} else {
 		cookiePaths = candidatePaths();
 	}
@@ -559,7 +711,7 @@ function deleteCookies(pattern, options = {}) {
 
 	names.forEach((cookieName) => {
 		const prefix = prefixRules(cookieName);
-		const nameDomains = prefix.hostOnly ? [''] : [...new Set(domainAttributes)];
+		const nameDomains = prefix.hostOnly ? [''] : cookieDomains;
 		const namePaths = prefix.hostOnly ? ['/'] : cookiePaths;
 
 		nameDomains.forEach((domain) => {
