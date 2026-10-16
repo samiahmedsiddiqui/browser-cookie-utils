@@ -8,6 +8,8 @@ import {
 	getAllCookies,
 	getCookies,
 	setCookie,
+	getJSONCookie,
+	setJSONCookie,
 	deleteCookie,
 	deleteCookies
 } from '../src/browser-cookie-utils.js';
@@ -168,6 +170,45 @@ test('setCookie ignores invalid names', () => {
 	assert.deepEqual(written, []);
 });
 
+test('setJSONCookie stores encoded JSON with setCookie options', () => {
+	setJSONCookie('prefs', { theme: 'dark', n: [1, 2] }, { unit: 'day' });
+
+	assert.equal(
+		written[0],
+		`prefs=${encodeURIComponent('{"theme":"dark","n":[1,2]}')}; max-age=86400; domain=.www.example.com; path=/; secure; samesite=Lax`
+	);
+});
+
+test('setJSONCookie skips values JSON cannot serialize', () => {
+	const circular = {};
+	circular.self = circular;
+
+	setJSONCookie('a', circular);
+	setJSONCookie('b', 10n);
+	setJSONCookie('c', undefined);
+	setJSONCookie('d', () => {});
+
+	assert.deepEqual(written, []);
+});
+
+test('getJSONCookie parses JSON values', () => {
+	document.setJar(
+		`prefs=${encodeURIComponent('{"theme":"dark"}')}; count=3; flag=true`
+	);
+
+	assert.deepEqual(getJSONCookie('prefs'), { theme: 'dark' });
+	assert.equal(getJSONCookie('count'), 3);
+	assert.equal(getJSONCookie('flag'), true);
+});
+
+test('getJSONCookie returns null when missing or not JSON', () => {
+	document.setJar('text=hello; broken=%7B');
+
+	assert.equal(getJSONCookie('missing'), null);
+	assert.equal(getJSONCookie('text'), null);
+	assert.equal(getJSONCookie('broken'), null);
+});
+
 test('deleteCookie expires the cookie on every domain', () => {
 	deleteCookie('theme', { domains: ['example.com', '.example.org'] });
 
@@ -262,6 +303,8 @@ test('helpers are no-ops without a browser', () => {
 
 	assert.equal(getCookie('a'), null);
 	assert.equal(hasCookie('a'), false);
+	assert.equal(getJSONCookie('a'), null);
+	assert.doesNotThrow(() => setJSONCookie('a', { b: 1 }));
 	assert.deepEqual(getAllCookies(), {});
 	assert.deepEqual(getCookies('*'), {});
 	assert.doesNotThrow(() => setCookie('a', '1'));
@@ -279,7 +322,9 @@ test('CJS build exports the helpers', () => {
 		'getAllCookies',
 		'getCookie',
 		'getCookies',
+		'getJSONCookie',
 		'hasCookie',
-		'setCookie'
+		'setCookie',
+		'setJSONCookie'
 	]);
 });

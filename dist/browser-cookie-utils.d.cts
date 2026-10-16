@@ -49,6 +49,19 @@ export function setCookie(
 	options?: SetCookieOptions
 ): void;
 
+/**
+ * Sets a cookie holding a JSON-serialized value. Nothing is written if the
+ * value can't be serialized.
+ */
+export function setJSONCookie(
+	name: string,
+	value: unknown,
+	options?: SetCookieOptions
+): void;
+
+/** Gets a cookie holding JSON. Returns null if not found or not valid JSON. */
+export function getJSONCookie<T = unknown>(name: string): T | null;
+
 export function deleteCookie(name: string, options?: CookieAttributes): void;
 
 /**
