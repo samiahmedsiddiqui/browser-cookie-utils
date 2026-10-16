@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Cookie prefix rules: `__Secure-` cookies always get `Secure`; `__Host-` cookies always get `Secure`, `path=/` and no `domain`.
 - New `unit` values: `second`, `minute`, `week` and `year` (365 days).
 - `expires` option for an exact expiry `Date`, and `session` option for session cookies.
 - `setJSONCookie(name, value, options)` and `getJSONCookie(name)` store and read JSON values.

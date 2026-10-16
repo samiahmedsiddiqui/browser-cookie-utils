@@ -183,6 +183,23 @@ setCookie('user', 'sami', {
 
 > Cookie names must be valid RFC 6265 tokens (no spaces, `;`, `=`, etc.). Invalid names are ignored.
 
+### Cookie prefixes (`__Secure-` / `__Host-`)
+
+Browsers enforce extra rules for cookies whose names start with these prefixes, and silently reject cookies that break them. The library applies the rules for you in `setCookie`, `deleteCookie` and `deleteCookies`:
+
+| Prefix      | Rules applied                                                         |
+| ----------- | --------------------------------------------------------------------- |
+| `__Secure-` | `Secure` is always set                                                |
+| `__Host-`   | `Secure` is always set, `path=/`, and no `domain` (`domains` ignored) |
+
+```js
+import { setCookie } from 'browser-cookie-utils';
+
+setCookie('__Host-session', 'abc123', { timeToLive: 1, unit: 'day' });
+```
+
+> Prefixed cookies can only be set from secure pages (HTTPS or `localhost`). Prefixes are matched case-insensitively.
+
 ### Cross-site cookies (SameSite=None)
 
 ```js
