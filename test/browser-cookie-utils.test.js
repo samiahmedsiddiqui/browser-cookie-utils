@@ -4,6 +4,8 @@ import { createRequire } from 'node:module';
 
 import {
 	getCookie,
+	getAllCookies,
+	getCookies,
 	setCookie,
 	deleteCookie,
 	deleteCookies
@@ -57,6 +59,57 @@ test('getCookie returns raw value when it is not URI-encoded', () => {
 	document.setJar('bad=100%');
 
 	assert.equal(getCookie('bad'), '100%');
+});
+
+test('getAllCookies returns every cookie decoded', () => {
+	document.setJar('a=1; theme=dark%20mode; bad=100%');
+
+	assert.deepEqual(getAllCookies(), {
+		a: '1',
+		theme: 'dark mode',
+		bad: '100%'
+	});
+});
+
+test('getAllCookies returns an empty object without cookies', () => {
+	assert.deepEqual(getAllCookies(), {});
+});
+
+test('getAllCookies keeps the first value for duplicate names', () => {
+	document.setJar('a=specific; a=general');
+
+	assert.deepEqual(getAllCookies(), { a: 'specific' });
+});
+
+test('getAllCookies stores __proto__ as a plain property', () => {
+	document.setJar('__proto__=x; a=1');
+
+	const cookies = getAllCookies();
+
+	assert.equal(Object.getPrototypeOf(cookies), Object.prototype);
+	assert.deepEqual(Object.keys(cookies), ['__proto__', 'a']);
+	assert.equal(cookies.__proto__, 'x');
+});
+
+test('getCookies filters by glob, RegExp and predicate', () => {
+	document.setJar('pref_theme=dark; pref_lang=en; utm_source=x; other=1');
+
+	assert.deepEqual(getCookies('pref_*'), {
+		pref_theme: 'dark',
+		pref_lang: 'en'
+	});
+	assert.deepEqual(getCookies(/^utm_/g), { utm_source: 'x' });
+	assert.deepEqual(
+		getCookies((name) => name.length === 5),
+		{ other: '1' }
+	);
+});
+
+test('getCookies ignores invalid patterns', () => {
+	document.setJar('a=1');
+
+	assert.deepEqual(getCookies(''), {});
+	assert.deepEqual(getCookies(42), {});
 });
 
 test('setCookie uses defaults', () => {
@@ -190,6 +243,8 @@ test('helpers are no-ops without a browser', () => {
 	delete globalThis.document;
 
 	assert.equal(getCookie('a'), null);
+	assert.deepEqual(getAllCookies(), {});
+	assert.deepEqual(getCookies('*'), {});
 	assert.doesNotThrow(() => setCookie('a', '1'));
 	assert.doesNotThrow(() => deleteCookie('a'));
 	assert.deepEqual(deleteCookies('*'), []);
@@ -202,7 +257,9 @@ test('CJS build exports the helpers', () => {
 	assert.deepEqual(Object.keys(cjs).sort(), [
 		'deleteCookie',
 		'deleteCookies',
+		'getAllCookies',
 		'getCookie',
+		'getCookies',
 		'setCookie'
 	]);
 });

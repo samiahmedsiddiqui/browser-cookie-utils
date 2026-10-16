@@ -16,6 +16,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- `getAllCookies()` returns every cookie as an object of name → decoded value.
+- `getCookies(pattern)` returns the cookies whose name matches a glob (`*`, `?`), RegExp or predicate.
 - `deleteCookies(pattern, options)` deletes every cookie whose name matches a glob (`*`, `?`), RegExp or predicate, and returns the names it couldn't delete.
 - TypeScript declarations (`.d.ts` / `.d.cts`).
 - `exports` entries for `./umd` and `./package.json`, plus `unpkg` / `jsdelivr` fields.

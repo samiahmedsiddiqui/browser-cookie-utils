@@ -34,6 +34,12 @@ export type CookieNamePattern = string | RegExp | ((name: string) => boolean);
 
 export function getCookie(name: string): string | null;
 
+/** Gets every cookie visible to JavaScript as an object of name -> decoded value. */
+export function getAllCookies(): Record<string, string>;
+
+/** Gets every cookie whose name matches a glob (`*`, `?`), RegExp or predicate. */
+export function getCookies(pattern: CookieNamePattern): Record<string, string>;
+
 export function setCookie(
 	name: string,
 	value: string | number | boolean,

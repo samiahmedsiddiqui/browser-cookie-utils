@@ -189,6 +189,30 @@ Returns:
 - `string` if found (URI-decoded; returned raw if it isn't valid URI encoding)
 - `null` if not found
 
+## Get all cookies
+
+```js
+import { getAllCookies } from 'browser-cookie-utils';
+
+getAllCookies(); // { theme: 'dark', lang: 'en' }
+```
+
+Returns an object of name → decoded value for every cookie visible to JavaScript (`HttpOnly` cookies are never included). Returns `{}` when there are none.
+
+> If the same name exists on several paths, the browser lists the most specific path first, and that value is used (same as `getCookie`).
+
+## Get cookies by pattern
+
+```js
+import { getCookies } from 'browser-cookie-utils';
+
+getCookies('pref_*'); // glob: * matches any characters, ? matches one
+getCookies(/^utm_/); // RegExp
+getCookies((name) => name.startsWith('ab_')); // predicate
+```
+
+Returns an object with only the matching cookies.
+
 ## Delete a cookie
 
 ```js

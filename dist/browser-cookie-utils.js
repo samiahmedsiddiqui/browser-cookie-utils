@@ -124,6 +124,55 @@ function readCookies() {
 }
 
 /**
+ * Decodes a cookie value.
+ *
+ * @param {string} value - Raw cookie value.
+ *
+ * @returns {string} - Decoded value, or the raw value if it isn't URI-encoded.
+ */
+function decodeValue(value) {
+	try {
+		return decodeURIComponent(value);
+	} catch {
+		// Value wasn't URI-encoded (e.g. set by other code); return it raw.
+		return value;
+	}
+}
+
+/**
+ * Collects matching cookies into an object of name -> decoded value.
+ *
+ * When a name appears more than once (e.g. set on different paths), the
+ * first one wins, like `getCookie`.
+ *
+ * @param {Function} matches - Name matcher.
+ *
+ * @returns {Object<string, string>}
+ */
+function collectCookies(matches) {
+	const result = {};
+
+	readCookies().forEach(([cookieName, cookieValue]) => {
+		if (
+			Object.prototype.hasOwnProperty.call(result, cookieName) ||
+			!matches(cookieName)
+		) {
+			return;
+		}
+
+		// defineProperty keeps names like `__proto__` as plain own properties.
+		Object.defineProperty(result, cookieName, {
+			value: decodeValue(cookieValue),
+			enumerable: true,
+			writable: true,
+			configurable: true
+		});
+	});
+
+	return result;
+}
+
+/**
  * Converts a name pattern into a matcher function.
  *
  * @param {string|RegExp|Function} pattern - Glob string (`*`, `?`), RegExp or predicate.
@@ -216,16 +265,37 @@ function getCookie(name) {
 		const [cookieName, cookieValue] = cookies[i];
 
 		if (cookieName === name) {
-			try {
-				return decodeURIComponent(cookieValue);
-			} catch {
-				// Value wasn't URI-encoded (e.g. set by other code); return it raw.
-				return cookieValue;
-			}
+			return decodeValue(cookieValue);
 		}
 	}
 
 	return null;
+}
+
+/**
+ * Gets every cookie visible to JavaScript.
+ *
+ * @returns {Object<string, string>} - Object of name -> decoded value.
+ */
+function getAllCookies() {
+	if (!hasDocument()) return {};
+
+	return collectCookies(() => true);
+}
+
+/**
+ * Gets every cookie whose name matches a pattern.
+ *
+ * @param {string|RegExp|Function} pattern - Glob string (`*`, `?`), RegExp or predicate.
+ *
+ * @returns {Object<string, string>} - Object of name -> decoded value.
+ */
+function getCookies(pattern) {
+	const matches = toMatcher(pattern);
+
+	if (!matches || !hasDocument()) return {};
+
+	return collectCookies(matches);
 }
 
 /**
@@ -350,4 +420,11 @@ function deleteCookies(pattern, options = {}) {
 	return names.filter((cookieName) => remaining.has(cookieName));
 }
 
-export { getCookie, setCookie, deleteCookie, deleteCookies };
+export {
+	getCookie,
+	getAllCookies,
+	getCookies,
+	setCookie,
+	deleteCookie,
+	deleteCookies
+};
