@@ -19,7 +19,24 @@ export interface CookieAttributes {
 	partitioned?: boolean;
 }
 
+export interface CookieReadOptions {
+	/**
+	 * Custom decoder for raw cookie values, e.g. to read cookies written by
+	 * other systems. Receives the raw value and the cookie's full name.
+	 * Defaults to `decodeURIComponent`. If it throws or doesn't return a
+	 * string, the raw value is used.
+	 */
+	decode?: (value: string, name: string) => string;
+}
+
 export interface SetCookieOptions extends CookieAttributes {
+	/**
+	 * Custom encoder for the value. Receives the value as a string and the
+	 * cookie's full name. Defaults to `encodeURIComponent`. Nothing is written
+	 * (and false is returned) if it throws, doesn't return a string, or
+	 * returns control characters, spaces or `;`.
+	 */
+	encode?: (value: string, name: string) => string;
 	/** Expiration duration. Defaults to `1`. Capped at 400 days by the library. Chromium and Firefox cap at 400 days; WebKit caps lower, and Safari limits cookies set from JavaScript to 7 days (ITP). */
 	timeToLive?: number;
 	/** Expiration unit. Defaults to `hour`. */
@@ -42,16 +59,24 @@ export interface DeleteCookiesOptions extends Omit<
 
 export type CookieNamePattern = string | RegExp | ((name: string) => boolean);
 
-export function getCookie(name: string): string | null;
+export function getCookie(
+	name: string,
+	options?: CookieReadOptions
+): string | null;
 
 /** Checks whether a cookie exists, even if its value is empty. */
 export function hasCookie(name: string): boolean;
 
 /** Gets every cookie visible to JavaScript as an object of name -> decoded value. */
-export function getAllCookies(): Record<string, string>;
+export function getAllCookies(
+	options?: CookieReadOptions
+): Record<string, string>;
 
 /** Gets every cookie whose name matches a glob (`*`, `?`), RegExp or predicate. */
-export function getCookies(pattern: CookieNamePattern): Record<string, string>;
+export function getCookies(
+	pattern: CookieNamePattern,
+	options?: CookieReadOptions
+): Record<string, string>;
 
 /**
  * Sets a cookie. Returns true if it's readable from the current page
@@ -74,7 +99,10 @@ export function setJSONCookie(
 ): boolean;
 
 /** Gets a cookie holding JSON. Returns null if not found or not valid JSON. */
-export function getJSONCookie<T = unknown>(name: string): T | null;
+export function getJSONCookie<T = unknown>(
+	name: string,
+	options?: CookieReadOptions
+): T | null;
 
 /** Deletes a cookie. Returns true if no cookie with this name is readable afterwards. */
 export function deleteCookie(name: string, options?: CookieAttributes): boolean;
@@ -88,8 +116,40 @@ export function deleteCookies(
 	options?: DeleteCookiesOptions
 ): string[];
 
+export interface CookieChange {
+	/** Cookie name. */
+	name: string;
+	/** New decoded value, or null if the cookie was deleted. */
+	value: string | null;
+	/** Previous decoded value, or null if the cookie was created. */
+	oldValue: string | null;
+}
+
+export interface CookieChangeOptions extends CookieReadOptions {
+	/**
+	 * Polling interval in ms when the Cookie Store API isn't available.
+	 * Defaults to `1000`; clamped to `100`–`2147483647`.
+	 */
+	interval?: number;
+}
+
+/**
+ * Calls `callback` when a cookie whose name matches a glob (`*`, `?`),
+ * RegExp or predicate is created, changed or deleted. Uses the Cookie Store
+ * `change` event where available, otherwise polls. Returns a function that
+ * stops watching.
+ */
+export function onCookieChange(
+	pattern: CookieNamePattern,
+	callback: (change: CookieChange) => void,
+	options?: CookieChangeOptions
+): () => void;
+
 export interface CookieUtilsDefaults
-	extends SetCookieOptions, Pick<DeleteCookiesOptions, 'paths'> {
+	extends
+		SetCookieOptions,
+		CookieChangeOptions,
+		Pick<DeleteCookiesOptions, 'paths'> {
 	/** Prefix added to every cookie name, e.g. `myapp_`. */
 	namePrefix?: string;
 }
@@ -104,6 +164,7 @@ export interface CookieUtils {
 	setJSONCookie: typeof setJSONCookie;
 	deleteCookie: typeof deleteCookie;
 	deleteCookies: typeof deleteCookies;
+	onCookieChange: typeof onCookieChange;
 }
 
 /**

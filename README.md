@@ -20,7 +20,8 @@ Lightweight, dependency-free JavaScript helpers for getting, setting, and deleti
 - Automatic Secure flag on HTTPS (and always with `SameSite=None`)
 - SameSite support (`Lax`, `Strict`, `None`)
 - Path customization
-- Safe encoding / decoding
+- Safe encoding / decoding, with custom `encode` / `decode` for cookies written by other systems
+- Watch cookies for changes (`onCookieChange`)
 
 ## Installation
 
@@ -195,6 +196,7 @@ setCookie('user', 'sami', {
 | `sameSite`    | `string`   | `Lax`            | `Lax`, `Strict`, `None`                       |
 | `secure`      | `boolean`  | auto             | Forced Secure flag                            |
 | `partitioned` | `boolean`  | `false`          | Adds `Partitioned` (CHIPS); forces `Secure`   |
+| `encode`      | `function` | URI encoding     | Custom value encoder (see below)              |
 
 > The `domain` attribute is skipped for `localhost` and IP addresses (browsers reject it there), so a host-only cookie is set instead.
 
@@ -372,6 +374,41 @@ deleteCookies('session_*', {
 > When using the UMD build via a `<script>` tag, replace imported functions with
 > `browserCookieUtils.*`.
 
+## Watch for changes
+
+```js
+import { onCookieChange } from 'browser-cookie-utils';
+
+const stop = onCookieChange('theme', ({ name, value, oldValue }) => {
+	applyTheme(value); // null when the cookie is deleted
+});
+
+onCookieChange('ab_*', handler, { interval: 500 }); // glob, RegExp or predicate
+
+stop(); // stop watching
+```
+
+The callback is called once per created, changed or deleted cookie, not for the value it has when you start watching. Where the [Cookie Store API](https://developer.mozilla.org/en-US/docs/Web/API/Cookie_Store_API) is available (secure contexts in recent browsers) its `change` event is used; otherwise `document.cookie` is polled every `interval` ms (default `1000`, clamped to `100`–`2147483647`). `HttpOnly` cookies are never visible to JavaScript.
+
+## Custom encoding (`encode` / `decode`)
+
+Values are written with `encodeURIComponent` and read with `decodeURIComponent` by default. Pass your own functions to read or write cookies in another format:
+
+```js
+import { getCookie, setCookie, createCookieUtils } from 'browser-cookie-utils';
+
+getCookie('legacy', { decode: (value) => unescape(value) });
+setCookie('raw', 'a:b/c', { encode: (value) => value });
+
+// Or as defaults for every helper
+const legacy = createCookieUtils({
+	encode: (value) => escape(value),
+	decode: (value) => unescape(value)
+});
+```
+
+Both functions receive the value and the cookie's full name. If `encode` throws, doesn't return a string, or returns control characters, spaces or `;`, nothing is written and `setCookie` returns `false`. If `decode` throws or doesn't return a string, the raw value is returned.
+
 ## Default options (`createCookieUtils`)
 
 Create the helpers once with your defaults instead of repeating them in every call:
@@ -390,7 +427,7 @@ cookies.setCookie('lang', 'en', { sameSite: 'Lax' }); // overrides one option
 cookies.deleteCookie('theme');
 ```
 
-The returned object has the same helpers as the module (`getCookie`, `hasCookie`, `getAllCookies`, `getCookies`, `setCookie`, `getJSONCookie`, `setJSONCookie`, `deleteCookie`, `deleteCookies`). Options passed to a single call override the defaults.
+The returned object has the same helpers as the module (`getCookie`, `hasCookie`, `getAllCookies`, `getCookies`, `setCookie`, `getJSONCookie`, `setJSONCookie`, `deleteCookie`, `deleteCookies`, `onCookieChange`). Options passed to a single call override the defaults. Defaults can include `encode`, `decode` and the `onCookieChange` `interval`.
 
 ### Name prefix
 
@@ -460,7 +497,7 @@ If you need the old behavior, continue using `v1.x`, which remains stable.
 ## Security behavior
 
 - Automatically adds `Secure` on HTTPS, with `SameSite=None` and with `Partitioned`
-- Values are encoded with `encodeURIComponent`, so they can't add attributes
+- Values are encoded with `encodeURIComponent`, so they can't add attributes. A custom `encode` result with control characters, spaces or `;` is refused
 - `sameSite` only accepts `Lax`, `Strict` or `None`; anything else becomes `Lax`
 - `path` must start with `/` and can't contain spaces, control characters or `;`. Nothing is written for an unsafe path
 - Invalid `domains` are skipped. If none is usable, nothing is written and `setCookie` returns `false`

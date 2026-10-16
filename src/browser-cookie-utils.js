@@ -13,6 +13,12 @@ const UNIT_TO_SECONDS = {
 // Browsers cap cookie lifetimes at 400 days.
 const MAX_AGE_LIMIT = 400 * 24 * 60 * 60;
 
+// `onCookieChange` polling interval in ms. Delays above the max overflow
+// `setInterval` and would run on every tick.
+const DEFAULT_INTERVAL = 1000;
+const MIN_INTERVAL = 100;
+const MAX_INTERVAL = 2147483647;
+
 /**
  * Checks whether cookies can be accessed (i.e. running in a browser).
  *
@@ -247,16 +253,69 @@ function decodeValue(value) {
 }
 
 /**
+ * Decodes a cookie value with a custom `decode` function, if one is given.
+ *
+ * @param {string} value - Raw cookie value.
+ * @param {string} name - Cookie name.
+ * @param {Object} [options] - Optional object with a `decode` function.
+ *
+ * @returns {string} - Decoded value, or the raw value if a custom `decode`
+ *   throws or doesn't return a string.
+ */
+function readValue(value, name, options) {
+	const decode = options && options.decode;
+
+	if (typeof decode !== 'function') return decodeValue(value);
+
+	try {
+		const decoded = decode(value, name);
+
+		return typeof decoded === 'string' ? decoded : value;
+	} catch {
+		return value;
+	}
+}
+
+/**
+ * Encodes a cookie value, with a custom `encode` function if one is given.
+ *
+ * @param {*} value - Value to store.
+ * @param {string} name - Cookie name.
+ * @param {Function} [encode] - Custom encoder.
+ *
+ * @returns {string|null} - Encoded value, or null if a custom `encode` throws,
+ *   doesn't return a string, or returns characters that would break the
+ *   cookie (control characters, spaces, `;`).
+ */
+function encodeValue(value, name, encode) {
+	const stringValue = value == null ? '' : String(value);
+
+	if (typeof encode !== 'function') return encodeURIComponent(stringValue);
+
+	let encoded;
+	try {
+		encoded = encode(stringValue, name);
+	} catch {
+		return null;
+	}
+
+	if (typeof encoded !== 'string' || hasUnsafeChars(encoded)) return null;
+
+	return encoded;
+}
+
+/**
  * Collects matching cookies into an object of name -> decoded value.
  *
  * When a name appears more than once (e.g. set on different paths), the
  * first one wins, like `getCookie`.
  *
  * @param {Function} matches - Name matcher.
+ * @param {Object} [options] - Optional object with a `decode` function.
  *
  * @returns {Object<string, string>}
  */
-function collectCookies(matches) {
+function collectCookies(matches, options) {
 	const result = {};
 
 	readCookies().forEach(([cookieName, cookieValue]) => {
@@ -269,7 +328,7 @@ function collectCookies(matches) {
 
 		// defineProperty keeps names like `__proto__` as plain own properties.
 		Object.defineProperty(result, cookieName, {
-			value: decodeValue(cookieValue),
+			value: readValue(cookieValue, cookieName, options),
 			enumerable: true,
 			writable: true,
 			configurable: true
@@ -447,10 +506,11 @@ function expiryAttribute({ session, expires, timeToLive, unit }) {
  * Gets the value of a cookie by name.
  *
  * @param {string} name - Name of the cookie to retrieve.
+ * @param {Object} [options] - Optional object with a custom `decode` function.
  *
  * @returns {string|null} - Decoded cookie value or null if not found.
  */
-function getCookie(name) {
+function getCookie(name, options = {}) {
 	if (!name || typeof name !== 'string' || !hasDocument()) return null;
 
 	const cookies = readCookies();
@@ -459,7 +519,7 @@ function getCookie(name) {
 		const [cookieName, cookieValue] = cookies[i];
 
 		if (cookieName === name) {
-			return decodeValue(cookieValue);
+			return readValue(cookieValue, cookieName, options);
 		}
 	}
 
@@ -482,27 +542,30 @@ function hasCookie(name) {
 /**
  * Gets every cookie visible to JavaScript.
  *
+ * @param {Object} [options] - Optional object with a custom `decode` function.
+ *
  * @returns {Object<string, string>} - Object of name -> decoded value.
  */
-function getAllCookies() {
+function getAllCookies(options = {}) {
 	if (!hasDocument()) return {};
 
-	return collectCookies(() => true);
+	return collectCookies(() => true, options);
 }
 
 /**
  * Gets every cookie whose name matches a pattern.
  *
  * @param {string|RegExp|Function} pattern - Glob string (`*`, `?`), RegExp or predicate.
+ * @param {Object} [options] - Optional object with a custom `decode` function.
  *
  * @returns {Object<string, string>} - Object of name -> decoded value.
  */
-function getCookies(pattern) {
+function getCookies(pattern, options = {}) {
 	const matches = toMatcher(pattern);
 
 	if (!matches || !hasDocument()) return {};
 
-	return collectCookies(matches);
+	return collectCookies(matches, options);
 }
 
 /**
@@ -510,10 +573,11 @@ function getCookies(pattern) {
  *
  * @param {string} name - Name of the cookie.
  * @param {string} value - Value to store in the cookie.
- * @param {Object} options - Optional object to define timeToLive, unit, domains, path, etc.
+ * @param {Object} options - Optional object to define timeToLive, unit, domains, path, encode, etc.
  *
  * @returns {boolean} - True if the cookie is readable from the current page
- *   afterwards (browsers drop invalid cookies silently).
+ *   afterwards (browsers drop invalid cookies silently). False, with nothing
+ *   written, if a custom `encode` fails or returns an unsafe value.
  */
 function setCookie(name, value, options = {}) {
 	if (!isValidName(name) || !hasDocument()) {
@@ -530,7 +594,8 @@ function setCookie(name, value, options = {}) {
 		partitioned = false,
 		// Partitioned cookies are for cross-site embeds, which need `None`.
 		sameSite = partitioned === true ? 'None' : 'Lax',
-		secure = window.location.protocol === 'https:'
+		secure = window.location.protocol === 'https:',
+		encode
 	} = options;
 
 	const prefix = prefixRules(name);
@@ -538,13 +603,17 @@ function setCookie(name, value, options = {}) {
 	const cookieDomains = prefix.hostOnly
 		? ['']
 		: domainAttributes(resolveDomains(domains));
+	const encodedValue = encodeValue(value, name, encode);
 
-	// Never write with an unsafe path or without a usable domain.
-	if (!isValidPath(cookiePath) || cookieDomains.length === 0) {
+	// Never write with an unsafe path or value, or without a usable domain.
+	if (
+		!isValidPath(cookiePath) ||
+		cookieDomains.length === 0 ||
+		encodedValue === null
+	) {
 		return false;
 	}
 
-	const encodedValue = encodeURIComponent(value == null ? '' : String(value));
 	const expiry = expiryAttribute({ session, expires, timeToLive, unit });
 	const attributes = commonAttributes({
 		path: cookiePath,
@@ -590,11 +659,12 @@ function setJSONCookie(name, value, options = {}) {
  * Gets a cookie holding a JSON-serialized value.
  *
  * @param {string} name - Name of the cookie.
+ * @param {Object} [options] - Optional object with a custom `decode` function.
  *
  * @returns {*} - Parsed value, or null if not found or not valid JSON.
  */
-function getJSONCookie(name) {
-	const value = getCookie(name);
+function getJSONCookie(name, options = {}) {
+	const value = getCookie(name, options);
 
 	if (value === null) return null;
 
@@ -735,6 +805,112 @@ function deleteCookies(pattern, options = {}) {
 }
 
 /**
+ * Returns the polling interval for `onCookieChange`.
+ *
+ * @param {*} interval - Interval option in ms.
+ *
+ * @returns {number} - Default for invalid values, otherwise clamped to the limits.
+ */
+function pollInterval(interval) {
+	if (!Number.isFinite(interval) || interval <= 0) return DEFAULT_INTERVAL;
+
+	return Math.min(MAX_INTERVAL, Math.max(MIN_INTERVAL, Math.round(interval)));
+}
+
+/**
+ * Lists the differences between two name -> value snapshots.
+ *
+ * @param {Object<string, string>} before - Previous snapshot.
+ * @param {Object<string, string>} after - Current snapshot.
+ *
+ * @returns {Array<{name: string, value: ?string, oldValue: ?string}>}
+ */
+function diffCookies(before, after) {
+	const has = (object, name) =>
+		Object.prototype.hasOwnProperty.call(object, name);
+	const changes = [];
+
+	Object.keys(after).forEach((name) => {
+		const oldValue = has(before, name) ? before[name] : null;
+
+		if (oldValue !== after[name]) {
+			changes.push({ name, value: after[name], oldValue });
+		}
+	});
+
+	Object.keys(before).forEach((name) => {
+		if (!has(after, name)) {
+			changes.push({ name, value: null, oldValue: before[name] });
+		}
+	});
+
+	return changes;
+}
+
+/**
+ * Calls `callback` when a cookie whose name matches the pattern is created,
+ * changed or deleted.
+ *
+ * Uses the Cookie Store `change` event where available and falls back to
+ * polling `document.cookie`. Only cookies visible to JavaScript are watched.
+ *
+ * @param {string|RegExp|Function} pattern - Glob string (`*`, `?`), RegExp or predicate.
+ * @param {Function} callback - Called with `{ name, value, oldValue }`;
+ *   `value` is null on delete and `oldValue` is null on create.
+ * @param {Object} [options] - Optional object of `interval` (polling, in ms) and `decode`.
+ *
+ * @returns {Function} - Stops watching.
+ */
+function onCookieChange(pattern, callback, options = {}) {
+	const matches = toMatcher(pattern);
+
+	if (!matches || typeof callback !== 'function' || !hasDocument()) {
+		return () => {};
+	}
+
+	let snapshot = collectCookies(matches, options);
+	let active = true;
+
+	const check = () => {
+		const current = collectCookies(matches, options);
+		const changes = diffCookies(snapshot, current);
+
+		snapshot = current;
+
+		changes.forEach((change) => {
+			if (!active) return;
+
+			try {
+				callback(change);
+			} catch (error) {
+				// Report the error without skipping the other changes.
+				setTimeout(() => {
+					throw error;
+				});
+			}
+		});
+	};
+
+	let stop;
+	const store = window.cookieStore;
+
+	if (store && typeof store.addEventListener === 'function') {
+		store.addEventListener('change', check);
+		stop = () => store.removeEventListener('change', check);
+	} else {
+		const timer = setInterval(check, pollInterval(options && options.interval));
+		stop = () => clearInterval(timer);
+	}
+
+	return () => {
+		if (!active) return;
+
+		active = false;
+		stop();
+	};
+}
+
+/**
  * Creates the cookie helpers with default options and an optional name prefix.
  *
  * Options passed to a single call override the defaults. With `namePrefix`,
@@ -776,13 +952,13 @@ function createCookieUtils(defaults = {}) {
 			cookieName.startsWith(prefix) && matches(stripPrefix(cookieName));
 	};
 
-	const scopedGetCookies = (pattern) => {
+	const scopedGetCookies = (pattern, options) => {
 		const matches = scopedMatcher(pattern);
 		const result = {};
 
 		if (!matches) return result;
 
-		const cookies = getCookies(matches);
+		const cookies = getCookies(matches, withDefaults(options));
 
 		Object.keys(cookies).forEach((cookieName) => {
 			Object.defineProperty(result, stripPrefix(cookieName), {
@@ -797,13 +973,15 @@ function createCookieUtils(defaults = {}) {
 	};
 
 	return {
-		getCookie: (name) => getCookie(fullName(name)),
+		getCookie: (name, options) =>
+			getCookie(fullName(name), withDefaults(options)),
 		hasCookie: (name) => hasCookie(fullName(name)),
-		getAllCookies: () => scopedGetCookies('*'),
-		getCookies: (pattern) => scopedGetCookies(pattern),
+		getAllCookies: (options) => scopedGetCookies('*', options),
+		getCookies: (pattern, options) => scopedGetCookies(pattern, options),
 		setCookie: (name, value, options) =>
 			setCookie(fullName(name), value, withDefaults(options)),
-		getJSONCookie: (name) => getJSONCookie(fullName(name)),
+		getJSONCookie: (name, options) =>
+			getJSONCookie(fullName(name), withDefaults(options)),
 		setJSONCookie: (name, value, options) =>
 			setJSONCookie(fullName(name), value, withDefaults(options)),
 		deleteCookie: (name, options) =>
@@ -814,6 +992,17 @@ function createCookieUtils(defaults = {}) {
 			if (!matches) return [];
 
 			return deleteCookies(matches, withDefaults(options)).map(stripPrefix);
+		},
+		onCookieChange: (pattern, callback, options) => {
+			const matches = scopedMatcher(pattern);
+
+			if (!matches || typeof callback !== 'function') return () => {};
+
+			return onCookieChange(
+				matches,
+				(change) => callback({ ...change, name: stripPrefix(change.name) }),
+				withDefaults(options)
+			);
 		}
 	};
 }
@@ -828,5 +1017,6 @@ export {
 	getJSONCookie,
 	setJSONCookie,
 	deleteCookie,
-	deleteCookies
+	deleteCookies,
+	onCookieChange
 };

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- `onCookieChange(pattern, callback, options?)` calls back with `{ name, value, oldValue }` when a matching cookie is created, changed or deleted, and returns a function that stops watching. It uses the Cookie Store `change` event where available and otherwise polls `document.cookie` every `interval` ms (default `1000`, clamped to `100`–`2147483647`).
+- Custom `encode` / `decode` options to read and write cookies in other formats, e.g. cookies set by another backend. `decode` works on `getCookie`, `getAllCookies`, `getCookies`, `getJSONCookie` and `onCookieChange`; `encode` on `setCookie` and `setJSONCookie`. Both can be set as `createCookieUtils` defaults. An `encode` result with control characters, spaces or `;` is refused, so nothing is written and `setCookie` returns `false`.
+- `createCookieUtils` returns `onCookieChange` too, scoped to `namePrefix`.
+
 ### Changed
 
 - Docs tooling: VitePress now runs on a patched Vite 6 (npm `overrides`), which clears the dev-only Vite and esbuild advisories. The published package is unaffected.

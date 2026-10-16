@@ -3,7 +3,7 @@
 ## What the library does
 
 - Adds `Secure` on HTTPS, with `SameSite=None`, and with `Partitioned`
-- Encodes values with `encodeURIComponent`, so they can't add attributes
+- Encodes values with `encodeURIComponent`, so they can't add attributes. A custom `encode` result with control characters, spaces or `;` is refused
 - Accepts only `Lax`, `Strict` or `None` for `sameSite` — anything else becomes `Lax`
 - Requires `path` to start with `/` and refuses spaces, control characters and `;`. Nothing is written for an unsafe path
 - Skips invalid `domains`. If none is usable, nothing is written and `setCookie` returns `false`

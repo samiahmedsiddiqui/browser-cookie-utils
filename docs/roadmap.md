@@ -27,8 +27,8 @@ What's shipped, what's next, and the version each feature is expected in. Plans 
 | #   | Feature                                                                                    | Priority | Status | Expected |
 | --- | ------------------------------------------------------------------------------------------ | -------- | ------ | -------- |
 | 1   | Real-browser tests in CI (Playwright)                                                      | P0       | ✅     | 2.1.0    |
-| 2   | Custom encode / decode (converters) — read cookies written by other systems                | P1       | 📋     | 2.2.0    |
-| 3   | `onCookieChange(name, callback)` — Cookie Store `change` event, polling fallback           | P1       | 📋     | 2.2.0    |
+| 2   | Custom encode / decode (converters) — read cookies written by other systems                | P1       | 🟢     | 2.2.0    |
+| 3   | `onCookieChange(name, callback)` — Cookie Store `change` event, polling fallback           | P1       | 🟢     | 2.2.0    |
 | 4   | Explain why a write failed (size check before writing, debug mode)                         | P2       | 📋     | 2.2.0    |
 | 5   | `areCookiesEnabled()`                                                                      | P2       | 📋     | 2.2.0    |
 | 6   | `refreshCookie(name, options)` — extend expiry, keep the value                             | P2       | 📋     | 2.2.0    |
