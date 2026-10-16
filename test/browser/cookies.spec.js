@@ -200,28 +200,52 @@ test.describe('size and expiry limits', () => {
 		expect(await stored(context, 'huge')).toHaveLength(0);
 	});
 
-	test('caps timeToLive at 400 days', async ({ page, context }) => {
-		await open(page, LOCALHOST);
-
-		expect(
-			await call(page, 'setCookie', 'ttl', 'v', { timeToLive: 5, unit: 'year' })
-		).toBe(true);
-
-		const left = secondsLeft(await storedOne(context, 'ttl'));
-		expect(left).toBeGreaterThan(400 * DAY - HOUR);
-		expect(left).toBeLessThanOrEqual(400 * DAY + 1);
-	});
-
-	test('browsers cap expires dates at 400 days', async ({
+	test('caps timeToLive at 400 days', async ({
 		page,
 		context,
 		browserName
 	}) => {
-		test.skip(
-			browserName === 'webkit',
-			'WebKit keeps far-future expires dates as they are'
-		);
+		await open(page, LOCALHOST);
 
+		// Record what the library writes, before the browser applies its own cap.
+		await page.evaluate(() => {
+			const { get, set } = Object.getOwnPropertyDescriptor(
+				window.Document.prototype,
+				'cookie'
+			);
+
+			window.cookieWrites = [];
+			Object.defineProperty(document, 'cookie', {
+				configurable: true,
+				get() {
+					return get.call(this);
+				},
+				set(value) {
+					window.cookieWrites.push(value);
+					set.call(this, value);
+				}
+			});
+		});
+
+		expect(
+			await call(page, 'setCookie', 'ttl', 'v', { timeToLive: 5, unit: 'year' })
+		).toBe(true);
+		expect(await page.evaluate(() => window.cookieWrites)).toEqual([
+			expect.stringContaining(`; max-age=${400 * DAY};`)
+		]);
+
+		// WebKit caps lower than Chromium and Firefox.
+		const minimum = browserName === 'webkit' ? 365 * DAY : 400 * DAY;
+		const left = secondsLeft(await storedOne(context, 'ttl'));
+		expect(left).toBeGreaterThan(minimum - HOUR);
+		expect(left).toBeLessThanOrEqual(400 * DAY + 1);
+	});
+
+	test('browsers cap far-future expires dates', async ({
+		page,
+		context,
+		browserName
+	}) => {
 		await open(page, LOCALHOST);
 
 		expect(
@@ -230,9 +254,15 @@ test.describe('size and expiry limits', () => {
 			})
 		).toBe(true);
 
+		// Chromium and Firefox cap at 400 days; WebKit's cap differs by version.
 		const left = secondsLeft(await storedOne(context, 'date'));
-		expect(left).toBeGreaterThan(400 * DAY - HOUR);
-		expect(left).toBeLessThanOrEqual(400 * DAY + 1);
+		if (browserName === 'webkit') {
+			expect(left).toBeGreaterThan(365 * DAY - HOUR);
+			expect(left).toBeLessThanOrEqual(1000 * DAY + 1);
+		} else {
+			expect(left).toBeGreaterThan(400 * DAY - HOUR);
+			expect(left).toBeLessThanOrEqual(400 * DAY + 1);
+		}
 	});
 });
 
