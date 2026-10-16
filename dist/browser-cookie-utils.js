@@ -100,6 +100,107 @@ function commonAttributes({ path, secure, sameSite }) {
 }
 
 /**
+ * Reads all cookies visible to JavaScript.
+ *
+ * @returns {Array<[string, string]>} - List of [name, raw value] pairs.
+ */
+function readCookies() {
+	const cookies = document.cookie ? document.cookie.split(';') : [];
+	const pairs = [];
+
+	for (let i = 0; i < cookies.length; i++) {
+		const cookie = cookies[i].trim();
+		const separatorIndex = cookie.indexOf('=');
+
+		if (separatorIndex === -1) continue;
+
+		pairs.push([
+			cookie.substring(0, separatorIndex),
+			cookie.substring(separatorIndex + 1)
+		]);
+	}
+
+	return pairs;
+}
+
+/**
+ * Converts a name pattern into a matcher function.
+ *
+ * @param {string|RegExp|Function} pattern - Glob string (`*`, `?`), RegExp or predicate.
+ *
+ * @returns {Function|null} - Matcher or null if the pattern is invalid.
+ */
+function toMatcher(pattern) {
+	if (typeof pattern === 'function') {
+		return (name) => Boolean(pattern(name));
+	}
+
+	if (pattern instanceof RegExp) {
+		return (name) => {
+			pattern.lastIndex = 0;
+			return pattern.test(name);
+		};
+	}
+
+	if (typeof pattern === 'string' && pattern.length > 0) {
+		const source = pattern
+			.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+			.replace(/\*/g, '.*')
+			.replace(/\?/g, '.');
+		const regex = new RegExp(`^${source}$`);
+
+		return (name) => regex.test(name);
+	}
+
+	return null;
+}
+
+/**
+ * Returns the current hostname and its parent domains, e.g.
+ * `a.b.example.com` -> `a.b.example.com`, `b.example.com`, `example.com`.
+ *
+ * @returns {string[]}
+ */
+function candidateDomains() {
+	const labels = window.location.hostname.split('.');
+	const domains = [];
+
+	for (let i = 0; i < labels.length - 1; i++) {
+		domains.push(labels.slice(i).join('.'));
+	}
+
+	return domains;
+}
+
+/**
+ * Returns `/` and every prefix of the current path, e.g.
+ * `/a/b` -> `/`, `/a`, `/a/b`.
+ *
+ * @returns {string[]}
+ */
+function candidatePaths() {
+	const segments = window.location.pathname.split('/').filter(Boolean);
+	const paths = ['/'];
+
+	for (let i = 1; i <= segments.length; i++) {
+		paths.push(`/${segments.slice(0, i).join('/')}`);
+	}
+
+	return paths;
+}
+
+/**
+ * Writes an already-expired cookie.
+ *
+ * @param {string} name - Name of the cookie.
+ * @param {string} domain - Domain attribute (empty for a host-only cookie).
+ * @param {string} attributes - path / secure / samesite attributes.
+ */
+function expireCookie(name, domain, attributes) {
+	document.cookie = `${name}=; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT${domain}${attributes}`;
+}
+
+/**
  * Gets the value of a cookie by name.
  *
  * @param {string} name - Name of the cookie to retrieve.
@@ -109,19 +210,12 @@ function commonAttributes({ path, secure, sameSite }) {
 function getCookie(name) {
 	if (!name || typeof name !== 'string' || !hasDocument()) return null;
 
-	const cookies = document.cookie ? document.cookie.split(';') : [];
+	const cookies = readCookies();
 
 	for (let i = 0; i < cookies.length; i++) {
-		const cookie = cookies[i].trim();
-		const separatorIndex = cookie.indexOf('=');
-
-		if (separatorIndex === -1) continue;
-
-		const cookieName = cookie.substring(0, separatorIndex);
+		const [cookieName, cookieValue] = cookies[i];
 
 		if (cookieName === name) {
-			const cookieValue = cookie.substring(separatorIndex + 1);
-
 			try {
 				return decodeURIComponent(cookieValue);
 			} catch {
@@ -190,8 +284,70 @@ function deleteCookie(name, options = {}) {
 	const attributes = commonAttributes({ path, secure, sameSite });
 
 	resolveDomains(domains).forEach((domain) => {
-		document.cookie = `${name}=; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT${domainAttribute(domain)}${attributes}`;
+		expireCookie(name, domainAttribute(domain), attributes);
 	});
 }
 
-export { getCookie, setCookie, deleteCookie };
+/**
+ * Deletes every cookie whose name matches a pattern.
+ *
+ * JavaScript can't see a cookie's domain or path, so unless `domains` /
+ * `paths` are given, each match is expired as a host-only cookie and on
+ * every parent domain, for `/` and every prefix of the current path.
+ * `HttpOnly` cookies are never visible to JavaScript and can't be deleted.
+ *
+ * @param {string|RegExp|Function} pattern - Glob string (`*`, `?`), RegExp or predicate.
+ * @param {Object} [options] - Optional object of domains, paths, secure, etc.
+ *
+ * @returns {string[]} - Names of matching cookies that still exist afterwards.
+ */
+function deleteCookies(pattern, options = {}) {
+	const matches = toMatcher(pattern);
+
+	if (!matches || !hasDocument()) {
+		return [];
+	}
+
+	const {
+		domains = [],
+		paths = [],
+		secure = window.location.protocol === 'https:',
+		sameSite = 'Lax'
+	} = options;
+
+	let domainAttributes;
+	if (Array.isArray(domains) && domains.length > 0) {
+		domainAttributes = domains.map(domainAttribute);
+	} else {
+		domainAttributes = ['', ...candidateDomains().map(domainAttribute)];
+	}
+
+	let cookiePaths;
+	if (Array.isArray(paths) && paths.length > 0) {
+		cookiePaths = paths;
+	} else {
+		cookiePaths = candidatePaths();
+	}
+
+	const names = [
+		...new Set(readCookies().map(([cookieName]) => cookieName))
+	].filter((cookieName) => isValidName(cookieName) && matches(cookieName));
+
+	names.forEach((cookieName) => {
+		[...new Set(domainAttributes)].forEach((domain) => {
+			cookiePaths.forEach((path) => {
+				expireCookie(
+					cookieName,
+					domain,
+					commonAttributes({ path, secure, sameSite })
+				);
+			});
+		});
+	});
+
+	const remaining = new Set(readCookies().map(([cookieName]) => cookieName));
+
+	return names.filter((cookieName) => remaining.has(cookieName));
+}
+
+export { getCookie, setCookie, deleteCookie, deleteCookies };

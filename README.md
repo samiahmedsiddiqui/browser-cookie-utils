@@ -212,6 +212,35 @@ deleteCookie('user', {
 
 > ⚠️ For deletion to succeed, `domains` and `path` **must match** the ones used when the cookie was set.
 
+## Delete cookies by pattern
+
+```js
+import { deleteCookies } from 'browser-cookie-utils';
+
+deleteCookies('_ga*'); // glob: * matches any characters, ? matches one
+deleteCookies(/^utm_/); // RegExp
+deleteCookies((name) => name.startsWith('tmp_')); // predicate
+deleteCookies('*'); // every cookie visible to JavaScript
+```
+
+Returns an array with the names of matching cookies that **still exist** afterwards (an empty array means everything matched was deleted).
+
+JavaScript can't read a cookie's domain or path, so by default each matching cookie is expired:
+
+- as a host-only cookie and on the current hostname and each parent domain (`app.example.com`, `example.com`)
+- for `/` and each prefix of the current path (`/`, `/a`, `/a/b`)
+
+Pass `domains` and/or `paths` to try specific values only:
+
+```js
+deleteCookies('session_*', {
+  domains: ['example.com'],
+  paths: ['/', '/app']
+});
+```
+
+> `HttpOnly` cookies are not visible to JavaScript and can't be deleted.
+
 > **Browser (UMD) usage:**
 > When using the UMD build via a `<script>` tag, replace imported functions with
 > `browserCookieUtils.*`.

@@ -5,25 +5,41 @@ import { createRequire } from 'node:module';
 import {
 	getCookie,
 	setCookie,
-	deleteCookie
+	deleteCookie,
+	deleteCookies
 } from '../src/browser-cookie-utils.js';
 
 let written;
 
-function mockBrowser({ hostname = 'www.example.com', protocol = 'https:' }) {
+function mockBrowser({
+	hostname = 'www.example.com',
+	protocol = 'https:',
+	pathname = '/'
+}) {
 	written = [];
 	let jar = '';
+	// Cookies that survive deletion (e.g. set on a domain we didn't try).
+	let stuck = [];
 
-	globalThis.window = { location: { hostname, protocol } };
+	globalThis.window = { location: { hostname, protocol, pathname } };
 	globalThis.document = {
 		get cookie() {
 			return jar;
 		},
 		set cookie(value) {
 			written.push(value);
+
+			const name = value.split('=')[0];
+			if (value.includes('max-age=0') && !stuck.includes(name)) {
+				jar = jar
+					.split('; ')
+					.filter((pair) => pair && pair.split('=')[0] !== name)
+					.join('; ');
+			}
 		},
-		setJar(value) {
+		setJar(value, stuckNames = []) {
 			jar = value;
+			stuck = stuckNames;
 		}
 	};
 }
@@ -92,6 +108,83 @@ test('deleteCookie expires the cookie on every domain', () => {
 	assert.match(written[1], /; domain=\.example\.org;/);
 });
 
+test('deleteCookies matches glob patterns', () => {
+	document.setJar('_ga=1; _ga_ABC=2; _gid=3; theme=dark');
+
+	assert.deepEqual(deleteCookies('_ga*'), []);
+	assert.equal(document.cookie, '_gid=3; theme=dark');
+});
+
+test('deleteCookies supports ? in globs and escapes regex characters', () => {
+	document.setJar('a.1=x; ab1=x; a.12=x');
+
+	deleteCookies('a.?');
+	assert.equal(document.cookie, 'ab1=x; a.12=x');
+});
+
+test('deleteCookies matches RegExp and predicates', () => {
+	document.setJar('utm_source=x; utm_medium=y; tmp_a=1; keep=1');
+
+	deleteCookies(/^utm_/g);
+	deleteCookies((name) => name.startsWith('tmp_'));
+	assert.equal(document.cookie, 'keep=1');
+});
+
+test('deleteCookies with * clears every cookie', () => {
+	document.setJar('a=1; b=2');
+
+	deleteCookies('*');
+	assert.equal(document.cookie, '');
+});
+
+test('deleteCookies tries host-only, parent domains and path prefixes', () => {
+	mockBrowser({ hostname: 'app.example.com', pathname: '/a/b' });
+	document.setJar('x=1', ['x']);
+
+	deleteCookies('x');
+
+	const targets = written.map((cookie) => {
+		const domain = (cookie.match(/domain=([^;]+)/) || [])[1] || 'host';
+		const path = cookie.match(/path=([^;]+)/)[1];
+		return `${domain} ${path}`;
+	});
+
+	assert.deepEqual(targets, [
+		'host /',
+		'host /a',
+		'host /a/b',
+		'.app.example.com /',
+		'.app.example.com /a',
+		'.app.example.com /a/b',
+		'.example.com /',
+		'.example.com /a',
+		'.example.com /a/b'
+	]);
+});
+
+test('deleteCookies uses given domains and paths', () => {
+	document.setJar('x=1', ['x']);
+
+	deleteCookies('x', { domains: ['example.org'], paths: ['/app'] });
+
+	assert.equal(written.length, 1);
+	assert.match(written[0], /; domain=\.example\.org; path=\/app;/);
+});
+
+test('deleteCookies returns names it could not delete', () => {
+	document.setJar('a=1; b=2', ['b']);
+
+	assert.deepEqual(deleteCookies('*'), ['b']);
+});
+
+test('deleteCookies ignores invalid patterns', () => {
+	document.setJar('a=1');
+
+	assert.deepEqual(deleteCookies(''), []);
+	assert.deepEqual(deleteCookies(42), []);
+	assert.equal(document.cookie, 'a=1');
+});
+
 test('helpers are no-ops without a browser', () => {
 	delete globalThis.window;
 	delete globalThis.document;
@@ -99,6 +192,7 @@ test('helpers are no-ops without a browser', () => {
 	assert.equal(getCookie('a'), null);
 	assert.doesNotThrow(() => setCookie('a', '1'));
 	assert.doesNotThrow(() => deleteCookie('a'));
+	assert.deepEqual(deleteCookies('*'), []);
 });
 
 test('CJS build exports the helpers', () => {
@@ -107,6 +201,7 @@ test('CJS build exports the helpers', () => {
 
 	assert.deepEqual(Object.keys(cjs).sort(), [
 		'deleteCookie',
+		'deleteCookies',
 		'getCookie',
 		'setCookie'
 	]);

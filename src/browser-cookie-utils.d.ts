@@ -20,6 +20,18 @@ export interface SetCookieOptions extends CookieAttributes {
 	unit?: CookieUnit;
 }
 
+export interface DeleteCookiesOptions extends Omit<
+	CookieAttributes,
+	'domains' | 'path'
+> {
+	/** Domains to try. Defaults to host-only plus the hostname and its parent domains. */
+	domains?: string[];
+	/** Paths to try. Defaults to `/` and every prefix of the current path. */
+	paths?: string[];
+}
+
+export type CookieNamePattern = string | RegExp | ((name: string) => boolean);
+
 export function getCookie(name: string): string | null;
 
 export function setCookie(
@@ -29,3 +41,12 @@ export function setCookie(
 ): void;
 
 export function deleteCookie(name: string, options?: CookieAttributes): void;
+
+/**
+ * Deletes every cookie whose name matches a glob (`*`, `?`), RegExp or predicate.
+ * Returns the names of matching cookies that still exist afterwards.
+ */
+export function deleteCookies(
+	pattern: CookieNamePattern,
+	options?: DeleteCookiesOptions
+): string[];
