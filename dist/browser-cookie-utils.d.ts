@@ -12,6 +12,8 @@ export interface CookieAttributes {
 	sameSite?: CookieSameSite;
 	/** Secure flag. Defaults to `true` on HTTPS. */
 	secure?: boolean;
+	/** Partitioned (CHIPS) cookie for cross-site embeds. Always adds `Secure`. */
+	partitioned?: boolean;
 }
 
 export interface SetCookieOptions extends CookieAttributes {

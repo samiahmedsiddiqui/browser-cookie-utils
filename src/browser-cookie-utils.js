@@ -94,29 +94,33 @@ function resolveDomains(domains) {
 }
 
 /**
- * Builds the shared path / secure / samesite attributes.
+ * Builds the shared path / secure / samesite / partitioned attributes.
  *
- * @param {Object} attributes - path, secure and sameSite values.
+ * @param {Object} attributes - path, secure, sameSite and partitioned values.
  *
  * @returns {string}
  */
-function commonAttributes({ path, secure, sameSite }) {
+function commonAttributes({ path, secure, sameSite, partitioned }) {
 	let attributes = '';
 
 	if (path && typeof path === 'string' && !/[;\s]/.test(path)) {
 		attributes += `; path=${path}`;
 	}
 
-	// Browsers reject `SameSite=None` cookies that aren't `Secure`.
+	// Browsers reject `SameSite=None` and `Partitioned` cookies that aren't `Secure`.
 	const isSameSiteNone =
 		typeof sameSite === 'string' && sameSite.toLowerCase() === 'none';
 
-	if (secure || isSameSiteNone) {
+	if (secure || isSameSiteNone || partitioned === true) {
 		attributes += '; secure';
 	}
 
 	if (sameSite) {
 		attributes += `; samesite=${sameSite}`;
+	}
+
+	if (partitioned === true) {
+		attributes += '; partitioned';
 	}
 
 	return attributes;
@@ -381,7 +385,8 @@ function setCookie(name, value, options = {}) {
 		domains = [],
 		path = '/',
 		sameSite = 'Lax',
-		secure = window.location.protocol === 'https:'
+		secure = window.location.protocol === 'https:',
+		partitioned = false
 	} = options;
 
 	const prefix = prefixRules(name);
@@ -390,7 +395,8 @@ function setCookie(name, value, options = {}) {
 	const attributes = commonAttributes({
 		path: prefix.hostOnly ? '/' : path,
 		secure: secure || prefix.secure,
-		sameSite
+		sameSite,
+		partitioned
 	});
 	const domainAttributes = prefix.hostOnly
 		? ['']
@@ -459,13 +465,15 @@ function deleteCookie(name, options = {}) {
 		domains = [],
 		path = '/',
 		secure = window.location.protocol === 'https:',
-		sameSite = 'Lax'
+		sameSite = 'Lax',
+		partitioned = false
 	} = options;
 	const prefix = prefixRules(name);
 	const attributes = commonAttributes({
 		path: prefix.hostOnly ? '/' : path,
 		secure: secure || prefix.secure,
-		sameSite
+		sameSite,
+		partitioned
 	});
 	const domainAttributes = prefix.hostOnly
 		? ['']
@@ -500,7 +508,8 @@ function deleteCookies(pattern, options = {}) {
 		domains = [],
 		paths = [],
 		secure = window.location.protocol === 'https:',
-		sameSite = 'Lax'
+		sameSite = 'Lax',
+		partitioned = false
 	} = options;
 
 	let domainAttributes;
@@ -534,7 +543,8 @@ function deleteCookies(pattern, options = {}) {
 					commonAttributes({
 						path,
 						secure: secure || prefix.secure,
-						sameSite
+						sameSite,
+						partitioned
 					})
 				);
 			});
