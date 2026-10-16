@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- `setJSONCookie(name, value, options)` and `getJSONCookie(name)` store and read JSON values.
 - `hasCookie(name)` checks whether a cookie exists, even if its value is empty.
 - `getAllCookies()` returns every cookie as an object of name → decoded value.
 - `getCookies(pattern)` returns the cookies whose name matches a glob (`*`, `?`), RegExp or predicate.

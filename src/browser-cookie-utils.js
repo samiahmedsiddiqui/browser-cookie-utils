@@ -347,6 +347,49 @@ function setCookie(name, value, options = {}) {
 }
 
 /**
+ * Sets a cookie holding a JSON-serialized value.
+ *
+ * Nothing is written if the value can't be serialized (e.g. circular
+ * references, BigInt, `undefined` or functions).
+ *
+ * @param {string} name - Name of the cookie.
+ * @param {*} value - Value to serialize with `JSON.stringify`.
+ * @param {Object} options - Same options as `setCookie`.
+ */
+function setJSONCookie(name, value, options = {}) {
+	let json;
+
+	try {
+		json = JSON.stringify(value);
+	} catch {
+		return;
+	}
+
+	if (typeof json !== 'string') return;
+
+	setCookie(name, json, options);
+}
+
+/**
+ * Gets a cookie holding a JSON-serialized value.
+ *
+ * @param {string} name - Name of the cookie.
+ *
+ * @returns {*} - Parsed value, or null if not found or not valid JSON.
+ */
+function getJSONCookie(name) {
+	const value = getCookie(name);
+
+	if (value === null) return null;
+
+	try {
+		return JSON.parse(value);
+	} catch {
+		return null;
+	}
+}
+
+/**
  * Deletes a cookie.
  *
  * @param {string} name - Name of the cookie.
@@ -438,6 +481,8 @@ export {
 	getAllCookies,
 	getCookies,
 	setCookie,
+	getJSONCookie,
+	setJSONCookie,
 	deleteCookie,
 	deleteCookies
 };
