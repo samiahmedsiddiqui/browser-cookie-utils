@@ -36,8 +36,8 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
-      - name: Build and test
-        run: npm test
+      - name: Build, test and check coverage
+        run: npm run test:coverage
 
       - name: Verify dist is up to date
         run: git diff --exit-code -- dist
