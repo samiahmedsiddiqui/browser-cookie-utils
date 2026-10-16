@@ -1,4 +1,4 @@
-/*! browser-cookie-utils v2.0.1 | License: MIT */
+/*! browser-cookie-utils v2.1.0 | License: MIT */
 'use strict';
 
 const UNIT_TO_SECONDS = {

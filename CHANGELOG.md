@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.1.0] - Oct 16, 2026
+
 ### Security
 
 - `sameSite` only accepts `Lax`, `Strict` or `None`. Other strings could inject attributes such as `path` or `max-age`.
@@ -48,6 +50,19 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+Behavior changes to check when upgrading from 2.0.x:
+
+- CommonJS files were renamed to `browser-cookie-utils.cjs` / `.min.cjs`. Imports through the package name are unaffected; only direct `dist/*.cjs.js` paths need updating.
+- Invalid cookie names (spaces, `;`, `=`, …) are ignored instead of written.
+- An unknown `unit` now falls back to `hour` instead of creating a session cookie.
+- Unsafe `path` values and invalid `domains` are no longer written; `setCookie` returns `false`.
+- `deleteCookie` without `domains` also removes the host-only cookie (two writes instead of one).
+- `setCookie` and `deleteCookie` return a `boolean` instead of `undefined`.
+
+Project:
+
+- Documentation site: https://samiahmedsiddiqui.github.io/browser-cookie-utils/
+- Real-browser tests (Chromium, Firefox, WebKit) and coverage thresholds in CI.
 - CI uses `npm ci`, checks formatting instead of rewriting it, runs tests and verifies `dist` is up to date.
 - README corrections (CDN version pinning, build table, deletion notes).
 

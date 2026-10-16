@@ -6,27 +6,27 @@ What's shipped, what's next, and the version each feature is expected in. Plans 
 
 **Priority:** P0 now · P1 high · P2 medium · P3 low
 
-## 2.1.0 — Security, types and new helpers
+## 2.1.0 — Security, types and new helpers ✅
 
-| Feature                                                            | Status   |
-| ------------------------------------------------------------------ | -------- |
-| Security hardening (attribute validation, ReDoS-safe globs)        | 🟢 Ready |
-| CommonJS `require()` fix                                           | 🟢 Ready |
-| TypeScript declarations                                            | 🟢 Ready |
-| `hasCookie`, `getAllCookies`, `getCookies(pattern)`                | 🟢 Ready |
-| `deleteCookies(pattern)` across domains and paths                  | 🟢 Ready |
-| `setJSONCookie` / `getJSONCookie`                                  | 🟢 Ready |
-| Units `second` … `year`, `expires: Date`, `session`                | 🟢 Ready |
-| `__Secure-` / `__Host-` prefix rules                               | 🟢 Ready |
-| `partitioned` (CHIPS)                                              | 🟢 Ready |
-| Write verification (`setCookie` / `deleteCookie` return `boolean`) | 🟢 Ready |
-| `createCookieUtils` with defaults and `namePrefix`                 | 🟢 Ready |
+| Feature                                                            | Status      |
+| ------------------------------------------------------------------ | ----------- |
+| Security hardening (attribute validation, ReDoS-safe globs)        | ✅ Released |
+| CommonJS `require()` fix                                           | ✅ Released |
+| TypeScript declarations                                            | ✅ Released |
+| `hasCookie`, `getAllCookies`, `getCookies(pattern)`                | ✅ Released |
+| `deleteCookies(pattern)` across domains and paths                  | ✅ Released |
+| `setJSONCookie` / `getJSONCookie`                                  | ✅ Released |
+| Units `second` … `year`, `expires: Date`, `session`                | ✅ Released |
+| `__Secure-` / `__Host-` prefix rules                               | ✅ Released |
+| `partitioned` (CHIPS)                                              | ✅ Released |
+| Write verification (`setCookie` / `deleteCookie` return `boolean`) | ✅ Released |
+| `createCookieUtils` with defaults and `namePrefix`                 | ✅ Released |
 
 ## Planned
 
 | #   | Feature                                                                                    | Priority | Status | Expected |
 | --- | ------------------------------------------------------------------------------------------ | -------- | ------ | -------- |
-| 1   | Real-browser tests in CI (Playwright)                                                      | P0       | 🚧     | 2.2.0    |
+| 1   | Real-browser tests in CI (Playwright)                                                      | P0       | ✅     | 2.1.0    |
 | 2   | Custom encode / decode (converters) — read cookies written by other systems                | P1       | 📋     | 2.2.0    |
 | 3   | `onCookieChange(name, callback)` — Cookie Store `change` event, polling fallback           | P1       | 📋     | 2.2.0    |
 | 4   | Explain why a write failed (size check before writing, debug mode)                         | P2       | 📋     | 2.2.0    |
@@ -44,11 +44,12 @@ What's shipped, what's next, and the version each feature is expected in. Plans 
 
 ## Released
 
-| Version | Highlights                                              |
-| ------- | ------------------------------------------------------- |
-| 2.0.1   | ESM export and UMD build fixes                          |
-| 2.0.0   | Options object API (breaking), ESM + CJS + UMD builds   |
-| 1.0.0   | First release: `getCookie`, `setCookie`, `deleteCookie` |
+| Version | Highlights                                                                    |
+| ------- | ----------------------------------------------------------------------------- |
+| 2.1.0   | Security hardening, TypeScript types, CommonJS fix, 8 new helpers and options |
+| 2.0.1   | ESM export and UMD build fixes                                                |
+| 2.0.0   | Options object API (breaking), ESM + CJS + UMD builds                         |
+| 1.0.0   | First release: `getCookie`, `setCookie`, `deleteCookie`                       |
 
 ## Suggest a feature
 
