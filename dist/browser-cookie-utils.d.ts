@@ -4,20 +4,23 @@ export type CookieUnit =
 export type CookieSameSite = 'Lax' | 'Strict' | 'None';
 
 export interface CookieAttributes {
-	/** Domains to apply the cookie on. Defaults to the current hostname. */
+	/** Domains to apply the cookie on. Defaults to the current hostname. Invalid domains are skipped. */
 	domains?: string[];
-	/** Cookie path. Defaults to `/`. */
+	/** Cookie path. Defaults to `/`. Must start with `/`; nothing is written for an unsafe path. */
 	path?: string;
-	/** SameSite attribute. Defaults to `Lax`. `None` always adds `Secure`. */
+	/**
+	 * SameSite attribute. Defaults to `Lax` (`None` with `partitioned`).
+	 * `None` always adds `Secure`. Unknown values become `Lax`.
+	 */
 	sameSite?: CookieSameSite;
 	/** Secure flag. Defaults to `true` on HTTPS. */
 	secure?: boolean;
-	/** Partitioned (CHIPS) cookie for cross-site embeds. Always adds `Secure`. */
+	/** Partitioned (CHIPS) cookie for cross-site embeds. Always adds `Secure`; defaults `sameSite` to `None`. */
 	partitioned?: boolean;
 }
 
 export interface SetCookieOptions extends CookieAttributes {
-	/** Expiration duration. Defaults to `1`. */
+	/** Expiration duration. Defaults to `1`. Capped at 400 days (the browser limit). */
 	timeToLive?: number;
 	/** Expiration unit. Defaults to `hour`. */
 	unit?: CookieUnit;

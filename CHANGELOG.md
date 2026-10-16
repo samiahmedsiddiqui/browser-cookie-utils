@@ -4,8 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Security
+
+- `sameSite` only accepts `Lax`, `Strict` or `None`. Other strings could inject attributes such as `path` or `max-age`.
+- Glob patterns are matched with a linear-time matcher. The previous RegExp conversion could freeze the page on long cookie names (ReDoS).
+- `path` and `domains` are validated. Unsafe paths are refused, and invalid domains are skipped instead of falling back to a host-only cookie.
+- `getJSONCookie` drops `__proto__` keys to prevent prototype changes when the result is merged.
+
 ### Fixed
 
+- `unit` values like `constructor` and non-finite or huge `timeToLive` values no longer produce invalid `max-age` values (which browsers turned into session cookies). Lifetimes are capped at 400 days.
+- `deleteCookies` also tries paths with a trailing slash.
+- `deleteCookie` without `domains` also removes the host-only cookie.
+- `partitioned: true` defaults `sameSite` to `None`, which cross-site embeds need.
 - CommonJS builds are now emitted as `.cjs` files. Previously `require('browser-cookie-utils')` returned an empty object in Node because the package is `"type": "module"`.
 - `getCookie` no longer throws when a cookie value isn't valid URI encoding; the raw value is returned.
 - `setCookie` / `deleteCookie` no longer set an invalid `domain` attribute on `localhost` or IP addresses, which made browsers drop the cookie.

@@ -254,7 +254,7 @@ test('deleteCookies only tries host-only path=/ for __Host- cookies', () => {
 	assert.deepEqual(hostWrites, [
 		'__Host-id=; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; secure; samesite=Lax'
 	]);
-	assert.equal(written.length - hostWrites.length, 9);
+	assert.equal(written.length - hostWrites.length, 15);
 });
 
 test('setCookie adds Partitioned and forces Secure', () => {
@@ -274,7 +274,7 @@ test('setCookie omits Partitioned by default', () => {
 test('deleteCookie and deleteCookies pass Partitioned through', () => {
 	document.setJar('embed=1', ['embed']);
 
-	deleteCookie('embed', { partitioned: true });
+	deleteCookie('embed', { partitioned: true, domains: ['example.com'] });
 	deleteCookies('embed', {
 		partitioned: true,
 		domains: ['example.com'],
@@ -283,8 +283,16 @@ test('deleteCookie and deleteCookies pass Partitioned through', () => {
 
 	assert.equal(written.length, 2);
 	written.forEach((cookie) =>
-		assert.match(cookie, /; secure; samesite=Lax; partitioned$/)
+		assert.match(cookie, /; secure; samesite=None; partitioned$/)
 	);
+});
+
+test('partitioned defaults to SameSite=None unless sameSite is given', () => {
+	setCookie('a', '1', { partitioned: true });
+	setCookie('b', '1', { partitioned: true, sameSite: 'Strict' });
+
+	assert.match(written[0], /; secure; samesite=None; partitioned$/);
+	assert.match(written[1], /; secure; samesite=Strict; partitioned$/);
 });
 
 test('setCookie falls back to hours for an unknown unit', () => {
@@ -411,13 +419,19 @@ test('deleteCookies tries host-only, parent domains and path prefixes', () => {
 	assert.deepEqual(targets, [
 		'host /',
 		'host /a',
+		'host /a/',
 		'host /a/b',
+		'host /a/b/',
 		'.app.example.com /',
 		'.app.example.com /a',
+		'.app.example.com /a/',
 		'.app.example.com /a/b',
+		'.app.example.com /a/b/',
 		'.example.com /',
 		'.example.com /a',
-		'.example.com /a/b'
+		'.example.com /a/',
+		'.example.com /a/b',
+		'.example.com /a/b/'
 	]);
 });
 
@@ -557,6 +571,145 @@ test('createCookieUtils ignores invalid patterns and defaults', () => {
 	assert.deepEqual(cookies.getCookies(42), {});
 	assert.deepEqual(cookies.deleteCookies(''), []);
 	assert.equal(cookies.getCookie('a'), '1');
+});
+
+test('sameSite values cannot inject attributes', () => {
+	setCookie('a', '1', { sameSite: 'Lax; path=/admin; max-age=999999' });
+	setCookie('b', '1', { sameSite: 'banana' });
+	setCookie('c', '1', { sameSite: 'STRICT' });
+	setCookie('d', '1', { sameSite: { toString: () => 'None; domain=x' } });
+	setCookie('e', '1', { sameSite: false });
+
+	assert.equal(
+		written[0],
+		'a=1; max-age=3600; domain=.www.example.com; path=/; secure; samesite=Lax'
+	);
+	assert.match(written[1], /; samesite=Lax$/);
+	assert.match(written[2], /; samesite=Strict$/);
+	assert.match(written[3], /; samesite=Lax$/);
+	assert.match(written[4], /; path=\/; secure$/);
+});
+
+test('glob patterns run in linear time', () => {
+	document.setJar(`${'a'.repeat(4000)}=1`);
+
+	const start = Date.now();
+	getCookies('**********b');
+	getCookies('*a*a*a*a*a*a*a*b');
+	deleteCookies('*a*a*a*a*a*a*a*b');
+
+	assert.ok(Date.now() - start < 200, `took ${Date.now() - start}ms`);
+});
+
+test('glob patterns still match correctly', () => {
+	document.setJar('abc=1; a.c=2; ab=3; xabcx=4; a*c=5');
+
+	assert.deepEqual(Object.keys(getCookies('a?c')).sort(), [
+		'a*c',
+		'a.c',
+		'abc'
+	]);
+	assert.deepEqual(Object.keys(getCookies('*b*')).sort(), [
+		'ab',
+		'abc',
+		'xabcx'
+	]);
+	assert.deepEqual(Object.keys(getCookies('a**')).sort(), [
+		'a*c',
+		'a.c',
+		'ab',
+		'abc'
+	]);
+	assert.deepEqual(Object.keys(getCookies('*c')).sort(), ['a*c', 'a.c', 'abc']);
+	assert.deepEqual(getCookies('ab?'), { abc: '1' });
+});
+
+test('setCookie refuses unsafe or invalid paths', () => {
+	assert.equal(setCookie('a', '1', { path: '/x\u0000y' }), false);
+	assert.equal(setCookie('a', '1', { path: '/my app' }), false);
+	assert.equal(setCookie('a', '1', { path: 'relative' }), false);
+	assert.equal(setCookie('a', '1', { path: '/a;secure' }), false);
+	assert.deepEqual(written, []);
+
+	assert.equal(setCookie('a', '1', { path: '/x,"y' }), true);
+});
+
+test('setCookie skips invalid domains instead of writing host-only', () => {
+	assert.equal(
+		setCookie('a', '1', { domains: ['example.com=x', 'exa\u0000mple.com'] }),
+		false
+	);
+	assert.deepEqual(written, []);
+
+	setCookie('b', '1', { domains: ['bad domain', 'Example.ORG'] });
+	assert.deepEqual(written, [
+		'b=1; max-age=3600; domain=.example.org; path=/; secure; samesite=Lax'
+	]);
+});
+
+test('IP and single-label domains only become host-only for the current host', () => {
+	assert.equal(setCookie('a', '1', { domains: ['localhost'] }), false);
+	assert.equal(setCookie('a', '1', { domains: ['10.0.0.1'] }), false);
+	assert.deepEqual(written, []);
+
+	mockBrowser({ hostname: '10.0.0.1', protocol: 'http:' });
+	setCookie('b', '1', { domains: ['10.0.0.1'] });
+	deleteCookies('b');
+
+	written.forEach((cookie) => assert.doesNotMatch(cookie, /domain=/));
+});
+
+test('expiry ignores prototype units and non-finite or huge values', () => {
+	setCookie('a', '1', { unit: 'constructor' });
+	setCookie('b', '1', { unit: 'toString' });
+	setCookie('c', '1', { timeToLive: Infinity });
+	setCookie('d', '1', { timeToLive: 1e20, unit: 'year' });
+	setCookie('e', '1', { timeToLive: 2, unit: 'year' });
+
+	assert.deepEqual(
+		written.map((cookie) => cookie.match(/max-age=([^;]+)/)[1]),
+		['3600', '3600', '3600', '34560000', '34560000']
+	);
+});
+
+test('getJSONCookie drops __proto__ keys', () => {
+	document.setJar(
+		`data=${encodeURIComponent('{"__proto__":{"polluted":true},"a":{"__proto__":{"x":1},"b":2}}')}`
+	);
+
+	const value = getJSONCookie('data');
+	const merged = Object.assign({}, value);
+
+	assert.deepEqual(Object.keys(value), ['a']);
+	assert.deepEqual(value.a, { b: 2 });
+	assert.equal(merged.polluted, undefined);
+	assert.equal({}.polluted, undefined);
+});
+
+test('deleteCookie also removes host-only cookies by default', () => {
+	deleteCookie('a');
+
+	assert.deepEqual(
+		written.map((cookie) => (cookie.match(/domain=([^;]+)/) || [])[1]),
+		[undefined, '.www.example.com']
+	);
+});
+
+test('deleteCookie with domains only tries those domains', () => {
+	deleteCookie('a', { domains: ['example.com'] });
+
+	assert.equal(written.length, 1);
+	assert.match(written[0], /; domain=\.example\.com;/);
+});
+
+test('deleteCookies skips invalid paths and domains', () => {
+	document.setJar('x=1');
+
+	assert.deepEqual(
+		deleteCookies('x', { paths: ['/a;b', 'no-slash'], domains: ['ok.com'] }),
+		['x']
+	);
+	assert.deepEqual(written, []);
 });
 
 test('helpers are no-ops without a browser', () => {
