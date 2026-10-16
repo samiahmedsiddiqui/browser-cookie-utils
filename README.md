@@ -112,6 +112,20 @@ Creates a cookie with:
 
 ---
 
+### Check that a cookie was stored
+
+Browsers drop invalid cookies **silently** (wrong domain, over the ~4 KB size limit, an `HttpOnly` cookie with the same name, an `expires` date in the past, …). `setCookie` returns whether the cookie can be read back with the new value:
+
+```js
+if (!setCookie('theme', 'dark', { domains: ['example.com'] })) {
+	console.warn('Cookie was not stored');
+}
+```
+
+> JavaScript can only read cookies whose `path` matches the current page. A cookie set for another path (e.g. `path: '/admin'` from `/`) is stored by the browser but returns `false`.
+
+---
+
 ### Set a cookie with options
 
 ```js
@@ -319,6 +333,8 @@ deleteCookie('user', {
 ```
 
 > ⚠️ For deletion to succeed, `domains` and `path` **must match** the ones used when the cookie was set.
+
+`deleteCookie` returns `true` if no cookie with that name is readable afterwards, so you can detect a mismatch.
 
 ## Delete cookies by pattern
 

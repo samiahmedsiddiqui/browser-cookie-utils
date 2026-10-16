@@ -25,6 +25,8 @@ function mockBrowser({
 	let jar = '';
 	// Cookies that survive deletion (e.g. set on a domain we didn't try).
 	let stuck = [];
+	// Cookies the browser refuses to store (e.g. invalid domain).
+	let rejected = [];
 
 	globalThis.window = { location: { hostname, protocol, pathname } };
 	globalThis.document = {
@@ -34,17 +36,27 @@ function mockBrowser({
 		set cookie(value) {
 			written.push(value);
 
-			const name = value.split('=')[0];
-			if (value.includes('max-age=0') && !stuck.includes(name)) {
-				jar = jar
-					.split('; ')
-					.filter((pair) => pair && pair.split('=')[0] !== name)
-					.join('; ');
+			const pair = value.split(';')[0];
+			const name = pair.split('=')[0];
+			const expires = value.match(/; expires=([^;]+)/);
+			const isExpired =
+				/; max-age=0(;|$)/.test(value) ||
+				(expires && new Date(expires[1]) <= new Date());
+			const others = jar
+				.split('; ')
+				.filter((cookie) => cookie && cookie.split('=')[0] !== name);
+
+			if (isExpired) {
+				if (!stuck.includes(name)) jar = others.join('; ');
+				return;
 			}
+
+			if (!rejected.includes(name)) jar = [...others, pair].join('; ');
 		},
-		setJar(value, stuckNames = []) {
+		setJar(value, stuckNames = [], rejectedNames = []) {
 			jar = value;
 			stuck = stuckNames;
+			rejected = rejectedNames;
 		}
 	};
 }
@@ -431,6 +443,55 @@ test('deleteCookies ignores invalid patterns', () => {
 	assert.equal(document.cookie, 'a=1');
 });
 
+test('setCookie returns true when the cookie is stored', () => {
+	assert.equal(setCookie('theme', 'dark mode'), true);
+	assert.equal(getCookie('theme'), 'dark mode');
+
+	assert.equal(setCookie('theme', 'light'), true);
+	assert.equal(getCookie('theme'), 'light');
+});
+
+test('setCookie returns false when the browser drops the cookie', () => {
+	document.setJar('', [], ['blocked']);
+
+	assert.equal(setCookie('blocked', '1'), false);
+});
+
+test('setCookie returns false for an expires date in the past', () => {
+	document.setJar('old=1');
+
+	assert.equal(setCookie('old', '2', { expires: new Date(0) }), false);
+	assert.equal(hasCookie('old'), false);
+});
+
+test('setCookie returns false when an old value is kept', () => {
+	document.setJar('a=old', [], ['a']);
+
+	assert.equal(setCookie('a', 'new'), false);
+	assert.equal(getCookie('a'), 'old');
+});
+
+test('setCookie returns false for invalid names', () => {
+	assert.equal(setCookie('bad name', '1'), false);
+});
+
+test('setJSONCookie returns the setCookie result', () => {
+	const circular = {};
+	circular.self = circular;
+
+	assert.equal(setJSONCookie('prefs', { a: 1 }), true);
+	assert.equal(setJSONCookie('bad', circular), false);
+});
+
+test('deleteCookie returns whether the cookie is gone', () => {
+	document.setJar('a=1; b=2', ['b']);
+
+	assert.equal(deleteCookie('a'), true);
+	assert.equal(deleteCookie('b'), false);
+	assert.equal(deleteCookie('missing'), true);
+	assert.equal(deleteCookie('bad name'), false);
+});
+
 test('helpers are no-ops without a browser', () => {
 	delete globalThis.window;
 	delete globalThis.document;
@@ -438,11 +499,11 @@ test('helpers are no-ops without a browser', () => {
 	assert.equal(getCookie('a'), null);
 	assert.equal(hasCookie('a'), false);
 	assert.equal(getJSONCookie('a'), null);
-	assert.doesNotThrow(() => setJSONCookie('a', { b: 1 }));
+	assert.equal(setJSONCookie('a', { b: 1 }), false);
 	assert.deepEqual(getAllCookies(), {});
 	assert.deepEqual(getCookies('*'), {});
-	assert.doesNotThrow(() => setCookie('a', '1'));
-	assert.doesNotThrow(() => deleteCookie('a'));
+	assert.equal(setCookie('a', '1'), false);
+	assert.equal(deleteCookie('a'), false);
 	assert.deepEqual(deleteCookies('*'), []);
 });
 

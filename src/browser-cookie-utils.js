@@ -200,6 +200,21 @@ function collectCookies(matches) {
 }
 
 /**
+ * Checks whether a cookie with this raw (encoded) value is readable.
+ *
+ * @param {string} name - Cookie name.
+ * @param {string} rawValue - Encoded cookie value.
+ *
+ * @returns {boolean}
+ */
+function isReadable(name, rawValue) {
+	return readCookies().some(
+		([cookieName, cookieValue]) =>
+			cookieName === name && cookieValue === rawValue
+	);
+}
+
+/**
  * Converts a name pattern into a matcher function.
  *
  * @param {string|RegExp|Function} pattern - Glob string (`*`, `?`), RegExp or predicate.
@@ -371,10 +386,13 @@ function getCookies(pattern) {
  * @param {string} name - Name of the cookie.
  * @param {string} value - Value to store in the cookie.
  * @param {Object} options - Optional object to define timeToLive, unit, domains, path, etc.
+ *
+ * @returns {boolean} - True if the cookie is readable from the current page
+ *   afterwards (browsers drop invalid cookies silently).
  */
 function setCookie(name, value, options = {}) {
 	if (!isValidName(name) || !hasDocument()) {
-		return;
+		return false;
 	}
 
 	const {
@@ -405,6 +423,8 @@ function setCookie(name, value, options = {}) {
 	domainAttributes.forEach((domain) => {
 		document.cookie = `${name}=${encodedValue}${expiry}${domain}${attributes}`;
 	});
+
+	return isReadable(name, encodedValue);
 }
 
 /**
@@ -416,6 +436,8 @@ function setCookie(name, value, options = {}) {
  * @param {string} name - Name of the cookie.
  * @param {*} value - Value to serialize with `JSON.stringify`.
  * @param {Object} options - Same options as `setCookie`.
+ *
+ * @returns {boolean} - Same as `setCookie`; false if the value can't be serialized.
  */
 function setJSONCookie(name, value, options = {}) {
 	let json;
@@ -423,12 +445,12 @@ function setJSONCookie(name, value, options = {}) {
 	try {
 		json = JSON.stringify(value);
 	} catch {
-		return;
+		return false;
 	}
 
-	if (typeof json !== 'string') return;
+	if (typeof json !== 'string') return false;
 
-	setCookie(name, json, options);
+	return setCookie(name, json, options);
 }
 
 /**
@@ -455,10 +477,12 @@ function getJSONCookie(name) {
  *
  * @param {string} name - Name of the cookie.
  * @param {Object} [options] - Optional object of domains, path, secure, etc.
+ *
+ * @returns {boolean} - True if no cookie with this name is readable afterwards.
  */
 function deleteCookie(name, options = {}) {
 	if (!isValidName(name) || !hasDocument()) {
-		return;
+		return false;
 	}
 
 	const {
@@ -482,6 +506,8 @@ function deleteCookie(name, options = {}) {
 	domainAttributes.forEach((domain) => {
 		expireCookie(name, domain, attributes);
 	});
+
+	return !readCookies().some(([cookieName]) => cookieName === name);
 }
 
 /**

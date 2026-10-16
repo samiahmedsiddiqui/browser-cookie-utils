@@ -50,26 +50,31 @@ export function getAllCookies(): Record<string, string>;
 /** Gets every cookie whose name matches a glob (`*`, `?`), RegExp or predicate. */
 export function getCookies(pattern: CookieNamePattern): Record<string, string>;
 
+/**
+ * Sets a cookie. Returns true if it's readable from the current page
+ * afterwards (browsers drop invalid cookies silently).
+ */
 export function setCookie(
 	name: string,
 	value: string | number | boolean,
 	options?: SetCookieOptions
-): void;
+): boolean;
 
 /**
- * Sets a cookie holding a JSON-serialized value. Nothing is written if the
- * value can't be serialized.
+ * Sets a cookie holding a JSON-serialized value. Nothing is written (and
+ * false is returned) if the value can't be serialized.
  */
 export function setJSONCookie(
 	name: string,
 	value: unknown,
 	options?: SetCookieOptions
-): void;
+): boolean;
 
 /** Gets a cookie holding JSON. Returns null if not found or not valid JSON. */
 export function getJSONCookie<T = unknown>(name: string): T | null;
 
-export function deleteCookie(name: string, options?: CookieAttributes): void;
+/** Deletes a cookie. Returns true if no cookie with this name is readable afterwards. */
+export function deleteCookie(name: string, options?: CookieAttributes): boolean;
 
 /**
  * Deletes every cookie whose name matches a glob (`*`, `?`), RegExp or predicate.

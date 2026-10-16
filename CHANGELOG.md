@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- `setCookie` and `setJSONCookie` return `true` if the cookie can be read back afterwards; `deleteCookie` returns `true` if the cookie is gone.
 - `partitioned` option on `setCookie`, `deleteCookie` and `deleteCookies` adds the `Partitioned` (CHIPS) attribute and forces `Secure`.
 - Cookie prefix rules: `__Secure-` cookies always get `Secure`; `__Host-` cookies always get `Secure`, `path=/` and no `domain`.
 - New `unit` values: `second`, `minute`, `week` and `year` (365 days).
