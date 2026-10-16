@@ -1,54 +1,45 @@
+import { defineConfig, globalIgnores } from 'eslint/config';
 import js from '@eslint/js';
-import prettierPlugin from 'eslint-plugin-prettier';
-import prettierConfig from 'eslint-config-prettier';
+import globals from 'globals';
+import prettierRecommended from 'eslint-plugin-prettier/recommended';
 
-export default [
-	js.configs.recommended,
-	prettierConfig,
+export default defineConfig([
+	globalIgnores(['dist/', 'node_modules/']),
 
+	{
+		files: ['**/*.js'],
+		extends: [js.configs.recommended],
+		languageOptions: {
+			ecmaVersion: 'latest',
+			sourceType: 'module'
+		},
+		rules: {
+			'no-var': 'error',
+			'prefer-const': 'error',
+			'no-unused-vars': ['error', { argsIgnorePattern: '^_' }]
+		}
+	},
+
+	// Library source: browser globals, syntax up to ES2019 (no transpiler).
 	{
 		files: ['src/**/*.js'],
 		languageOptions: {
-			ecmaVersion: 'latest',
-			sourceType: 'module',
-			globals: {
-				window: 'readonly',
-				document: 'readonly'
-			}
-		},
-		plugins: {
-			prettier: prettierPlugin
-		},
-		rules: {
-			'prettier/prettier': 'error',
-			'no-var': 'error',
-			'prefer-const': 'error',
-			'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }]
+			ecmaVersion: 2019,
+			globals: globals.browser
 		}
 	},
 
+	// Tooling and tests run in Node; tests mock `window` / `document`.
 	{
-		files: ['build.js', 'test/**/*.js'],
+		files: ['build.js', 'eslint.config.js', 'test/**/*.js'],
 		languageOptions: {
-			ecmaVersion: 'latest',
-			sourceType: 'module',
 			globals: {
-				console: 'readonly',
-				process: 'readonly',
-				globalThis: 'readonly',
+				...globals.node,
 				window: 'writable',
 				document: 'writable'
 			}
-		},
-		plugins: {
-			prettier: prettierPlugin
-		},
-		rules: {
-			'prettier/prettier': 'error'
 		}
 	},
 
-	{
-		ignores: ['dist/**', 'node_modules/**']
-	}
-];
+	prettierRecommended
+]);

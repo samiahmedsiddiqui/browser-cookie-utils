@@ -22,7 +22,7 @@
 ## Every public API change must include
 
 1. Types in `src/browser-cookie-utils.d.ts`
-2. Tests in `test/browser-cookie-utils.test.js` (`node:test`, must pass on Node 20)
+2. Tests in `test/browser-cookie-utils.test.js` (`node:test`, must pass on the Node version in `.nvmrc`)
 3. A README section with an example
 4. An entry under `## [Unreleased]` in `CHANGELOG.md`
 
