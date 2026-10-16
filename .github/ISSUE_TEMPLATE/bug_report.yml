@@ -1,0 +1,61 @@
+name: Bug report
+description: Something doesn't work as documented
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      placeholder: e.g. 2.1.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: build
+    attributes:
+      label: Build
+      options:
+        - ESM (import)
+        - CJS (require)
+        - UMD (script tag / CDN)
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: e.g. Chrome 140, Safari 18
+    validations:
+      required: true
+
+  - type: input
+    id: url
+    attributes:
+      label: Page URL shape
+      description: Protocol, hostname type and path. Don't share private URLs.
+      placeholder: e.g. https://app.example.com/a/b, http://localhost:3000
+
+  - type: textarea
+    id: code
+    attributes:
+      label: Code
+      description: The exact call(s), including options.
+      render: js
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include the cookie as shown in DevTools (Application > Cookies) and any console warnings.
+    validations:
+      required: true
