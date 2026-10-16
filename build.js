@@ -34,12 +34,28 @@ function stripExports(code) {
 		.replace(/^\s*'use strict';\s*/, '');
 }
 
+// Returns the names from the source's `export { ... }` statement.
+function getExportList(code) {
+	const match = code.match(/^\s*export\s*\{([^}]*)\};?\s*$/m);
+
+	if (!match) {
+		throw new Error('No `export { ... }` statement found in source');
+	}
+
+	return match[1]
+		.split(',')
+		.map((name) => name.trim())
+		.filter(Boolean)
+		.join(', ');
+}
+
 async function build() {
 	try {
 		fs.mkdirSync(distDir, { recursive: true });
 
 		const sourceCode = fs.readFileSync(srcFile, 'utf8');
 		const nonEsmCode = stripExports(sourceCode);
+		const exportList = getExportList(sourceCode);
 
 		/* ---------------- ESM ---------------- */
 
@@ -69,7 +85,7 @@ async function build() {
 		const cjsWrapped = `'use strict';
 
 ${nonEsmCode}
-module.exports = { getCookie, setCookie, deleteCookie };
+module.exports = { ${exportList} };
 `;
 
 		fs.writeFileSync(cjsFile, `${banner}\n${cjsWrapped}`, 'utf8');
@@ -98,7 +114,7 @@ module.exports = { getCookie, setCookie, deleteCookie };
 }(typeof self !== 'undefined' ? self : this, function () {
 'use strict';
 ${nonEsmCode}
-return { getCookie, setCookie, deleteCookie };
+return { ${exportList} };
 }));
 `;
 
