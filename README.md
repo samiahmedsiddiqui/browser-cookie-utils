@@ -189,6 +189,18 @@ Returns:
 - `string` if found (URI-decoded; returned raw if it isn't valid URI encoding)
 - `null` if not found
 
+## Check if a cookie exists
+
+```js
+import { hasCookie } from 'browser-cookie-utils';
+
+if (hasCookie('consent')) {
+  // ...
+}
+```
+
+Returns `true` when the cookie exists, **even if its value is empty**. Use it instead of `getCookie(name) !== null` checks when an empty value is meaningful.
+
 ## Get all cookies
 
 ```js
