@@ -22,7 +22,10 @@
 ## Every public API change must include
 
 1. Types in `src/browser-cookie-utils.d.ts`
-2. Tests in `test/browser-cookie-utils.test.js` (`node:test`, must pass on the Node version in `.nvmrc`)
+2. Tests (`node:test`, must pass on the Node version in `.nvmrc`):
+   - behavior tests in `test/browser-cookie-utils.test.js`
+   - **boundary tests in `test/boundaries.test.js` for every new or changed option**: the minimum and maximum accepted values, just outside both, and invalid types (`null`, `undefined`, wrong type, empty, unsafe characters)
+   - coverage of `src/` must stay at 100% lines and functions and at least 98% branches; CI fails otherwise
 3. A README section with an example
 4. An entry under `## [Unreleased]` in `CHANGELOG.md`
 
@@ -30,7 +33,7 @@
 
 - One feature or fix per pull request, branched from `main`.
 - Branch names: `feat/...`, `fix/...`, `docs/...`, `ci/...`.
-- Before pushing: `npm run lint && npm run format:check && npm test`.
+- Before pushing: `npm run lint && npm run format:check && npm run test:coverage`.
 - Browser behavior (domains, paths, `Secure`, prefixes, limits) is tested in real browsers with `npm run test:browser` (Playwright, `test/browser/`). Install the browsers once with `npx playwright install chromium firefox webkit`. CI runs these tests in a separate job.
 - Don't bump the version in feature PRs; releases are done separately.
 

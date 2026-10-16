@@ -751,7 +751,18 @@ function createCookieUtils(defaults = {}) {
 		defaults && typeof defaults === 'object' ? defaults : {};
 	const prefix = typeof namePrefix === 'string' ? namePrefix : '';
 
-	const withDefaults = (options) => ({ ...defaultOptions, ...options });
+	// Per-call options override the defaults, except values left `undefined`.
+	const withDefaults = (options) => {
+		const merged = { ...defaultOptions };
+
+		if (options && typeof options === 'object') {
+			Object.keys(options).forEach((key) => {
+				if (options[key] !== undefined) merged[key] = options[key];
+			});
+		}
+
+		return merged;
+	};
 	const fullName = (name) =>
 		typeof name === 'string' && name.length > 0 ? `${prefix}${name}` : name;
 	const stripPrefix = (name) => name.slice(prefix.length);

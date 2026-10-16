@@ -8,6 +8,7 @@
 
 ## Checklist
 
-- [ ] `npm run lint && npm run format:check && npm test` pass
+- [ ] `npm run lint && npm run format:check && npm run test:coverage` pass
+- [ ] Boundary tests (min / max / invalid) added for new or changed options
 - [ ] `dist/` rebuilt and committed
 - [ ] Types, tests, README and `CHANGELOG.md` updated (for API changes)

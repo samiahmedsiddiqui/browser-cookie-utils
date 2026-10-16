@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- `createCookieUtils`: a per-call option set to `undefined` no longer overrides the default.
 - `unit` values like `constructor` and non-finite or huge `timeToLive` values no longer produce invalid `max-age` values (which browsers turned into session cookies). Lifetimes are capped at 400 days.
 - `deleteCookies` also tries paths with a trailing slash.
 - `deleteCookie` without `domains` also removes the host-only cookie.
