@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 import {
+	createCookieUtils,
 	getCookie,
 	hasCookie,
 	getAllCookies,
@@ -492,6 +493,72 @@ test('deleteCookie returns whether the cookie is gone', () => {
 	assert.equal(deleteCookie('bad name'), false);
 });
 
+test('createCookieUtils applies defaults and lets calls override them', () => {
+	const cookies = createCookieUtils({
+		domains: ['example.com'],
+		sameSite: 'Strict',
+		unit: 'day'
+	});
+
+	cookies.setCookie('a', '1');
+	cookies.setCookie('b', '1', { sameSite: 'Lax', timeToLive: 2 });
+
+	assert.equal(
+		written[0],
+		'a=1; max-age=86400; domain=.example.com; path=/; secure; samesite=Strict'
+	);
+	assert.equal(
+		written[1],
+		'b=1; max-age=172800; domain=.example.com; path=/; secure; samesite=Lax'
+	);
+});
+
+test('createCookieUtils without a prefix behaves like the exports', () => {
+	const cookies = createCookieUtils();
+	document.setJar('a=1; b=2');
+
+	assert.equal(cookies.getCookie('a'), '1');
+	assert.deepEqual(cookies.getAllCookies(), { a: '1', b: '2' });
+	assert.equal(cookies.deleteCookie('a'), true);
+	assert.deepEqual(cookies.getCookies('*'), { b: '2' });
+});
+
+test('createCookieUtils namePrefix scopes every helper', () => {
+	const cookies = createCookieUtils({ namePrefix: 'app_' });
+	document.setJar('app_theme=dark; app_lang=en; theme=global; other=1');
+
+	assert.equal(cookies.getCookie('theme'), 'dark');
+	assert.equal(cookies.hasCookie('other'), false);
+	assert.deepEqual(cookies.getAllCookies(), { theme: 'dark', lang: 'en' });
+	assert.deepEqual(cookies.getCookies('th*'), { theme: 'dark' });
+
+	assert.equal(cookies.setCookie('size', '12'), true);
+	assert.equal(getCookie('app_size'), '12');
+
+	assert.equal(cookies.setJSONCookie('prefs', { a: 1 }), true);
+	assert.deepEqual(cookies.getJSONCookie('prefs'), { a: 1 });
+
+	assert.equal(cookies.deleteCookie('lang'), true);
+	assert.equal(getCookie('app_lang'), null);
+});
+
+test('createCookieUtils deleteCookies only touches prefixed cookies', () => {
+	const cookies = createCookieUtils({ namePrefix: 'app_' });
+	document.setJar('app_a=1; app_b=2; a=3', ['app_b']);
+
+	assert.deepEqual(cookies.deleteCookies('*'), ['b']);
+	assert.equal(document.cookie, 'app_b=2; a=3');
+});
+
+test('createCookieUtils ignores invalid patterns and defaults', () => {
+	const cookies = createCookieUtils('nope');
+	document.setJar('a=1');
+
+	assert.deepEqual(cookies.getCookies(42), {});
+	assert.deepEqual(cookies.deleteCookies(''), []);
+	assert.equal(cookies.getCookie('a'), '1');
+});
+
 test('helpers are no-ops without a browser', () => {
 	delete globalThis.window;
 	delete globalThis.document;
@@ -512,6 +579,7 @@ test('CJS build exports the helpers', () => {
 	const cjs = require('../dist/browser-cookie-utils.min.cjs');
 
 	assert.deepEqual(Object.keys(cjs).sort(), [
+		'createCookieUtils',
 		'deleteCookie',
 		'deleteCookies',
 		'getAllCookies',

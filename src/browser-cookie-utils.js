@@ -582,7 +582,81 @@ function deleteCookies(pattern, options = {}) {
 	return names.filter((cookieName) => remaining.has(cookieName));
 }
 
+/**
+ * Creates the cookie helpers with default options and an optional name prefix.
+ *
+ * Options passed to a single call override the defaults. With `namePrefix`,
+ * names are prefixed automatically, and the pattern helpers only see
+ * prefixed cookies and return names without the prefix.
+ *
+ * @param {Object} [defaults] - Default options for every call, plus `namePrefix`.
+ *
+ * @returns {Object} - The same helpers as the module exports.
+ */
+function createCookieUtils(defaults = {}) {
+	const { namePrefix = '', ...defaultOptions } =
+		defaults && typeof defaults === 'object' ? defaults : {};
+	const prefix = typeof namePrefix === 'string' ? namePrefix : '';
+
+	const withDefaults = (options) => ({ ...defaultOptions, ...options });
+	const fullName = (name) =>
+		typeof name === 'string' && name.length > 0 ? `${prefix}${name}` : name;
+	const stripPrefix = (name) => name.slice(prefix.length);
+
+	// Matches prefixed cookies whose unprefixed name matches the pattern.
+	const scopedMatcher = (pattern) => {
+		const matches = toMatcher(pattern);
+
+		if (!matches) return null;
+
+		return (cookieName) =>
+			cookieName.startsWith(prefix) && matches(stripPrefix(cookieName));
+	};
+
+	const scopedGetCookies = (pattern) => {
+		const matches = scopedMatcher(pattern);
+		const result = {};
+
+		if (!matches) return result;
+
+		const cookies = getCookies(matches);
+
+		Object.keys(cookies).forEach((cookieName) => {
+			Object.defineProperty(result, stripPrefix(cookieName), {
+				value: cookies[cookieName],
+				enumerable: true,
+				writable: true,
+				configurable: true
+			});
+		});
+
+		return result;
+	};
+
+	return {
+		getCookie: (name) => getCookie(fullName(name)),
+		hasCookie: (name) => hasCookie(fullName(name)),
+		getAllCookies: () => scopedGetCookies('*'),
+		getCookies: (pattern) => scopedGetCookies(pattern),
+		setCookie: (name, value, options) =>
+			setCookie(fullName(name), value, withDefaults(options)),
+		getJSONCookie: (name) => getJSONCookie(fullName(name)),
+		setJSONCookie: (name, value, options) =>
+			setJSONCookie(fullName(name), value, withDefaults(options)),
+		deleteCookie: (name, options) =>
+			deleteCookie(fullName(name), withDefaults(options)),
+		deleteCookies: (pattern, options) => {
+			const matches = scopedMatcher(pattern);
+
+			if (!matches) return [];
+
+			return deleteCookies(matches, withDefaults(options)).map(stripPrefix);
+		}
+	};
+}
+
 export {
+	createCookieUtils,
 	getCookie,
 	hasCookie,
 	getAllCookies,
