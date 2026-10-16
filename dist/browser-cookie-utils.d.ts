@@ -34,6 +34,9 @@ export type CookieNamePattern = string | RegExp | ((name: string) => boolean);
 
 export function getCookie(name: string): string | null;
 
+/** Checks whether a cookie exists, even if its value is empty. */
+export function hasCookie(name: string): boolean;
+
 /** Gets every cookie visible to JavaScript as an object of name -> decoded value. */
 export function getAllCookies(): Record<string, string>;
 

@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 
 import {
 	getCookie,
+	hasCookie,
 	getAllCookies,
 	getCookies,
 	setCookie,
@@ -59,6 +60,23 @@ test('getCookie returns raw value when it is not URI-encoded', () => {
 	document.setJar('bad=100%');
 
 	assert.equal(getCookie('bad'), '100%');
+});
+
+test('hasCookie detects existing cookies, including empty ones', () => {
+	document.setJar('a=1; empty=; b=2');
+
+	assert.equal(hasCookie('a'), true);
+	assert.equal(hasCookie('empty'), true);
+	assert.equal(hasCookie('missing'), false);
+	assert.equal(hasCookie('A'), false);
+});
+
+test('hasCookie returns false for invalid names', () => {
+	document.setJar('a=1');
+
+	assert.equal(hasCookie(''), false);
+	assert.equal(hasCookie(null), false);
+	assert.equal(hasCookie(1), false);
 });
 
 test('getAllCookies returns every cookie decoded', () => {
@@ -243,6 +261,7 @@ test('helpers are no-ops without a browser', () => {
 	delete globalThis.document;
 
 	assert.equal(getCookie('a'), null);
+	assert.equal(hasCookie('a'), false);
 	assert.deepEqual(getAllCookies(), {});
 	assert.deepEqual(getCookies('*'), {});
 	assert.doesNotThrow(() => setCookie('a', '1'));
@@ -260,6 +279,7 @@ test('CJS build exports the helpers', () => {
 		'getAllCookies',
 		'getCookie',
 		'getCookies',
+		'hasCookie',
 		'setCookie'
 	]);
 });

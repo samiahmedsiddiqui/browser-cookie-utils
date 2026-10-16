@@ -273,6 +273,19 @@ function getCookie(name) {
 }
 
 /**
+ * Checks whether a cookie exists, even if its value is empty.
+ *
+ * @param {string} name - Name of the cookie.
+ *
+ * @returns {boolean}
+ */
+function hasCookie(name) {
+	if (!name || typeof name !== 'string' || !hasDocument()) return false;
+
+	return readCookies().some(([cookieName]) => cookieName === name);
+}
+
+/**
  * Gets every cookie visible to JavaScript.
  *
  * @returns {Object<string, string>} - Object of name -> decoded value.
@@ -422,6 +435,7 @@ function deleteCookies(pattern, options = {}) {
 
 export {
 	getCookie,
+	hasCookie,
 	getAllCookies,
 	getCookies,
 	setCookie,

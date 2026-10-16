@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- `hasCookie(name)` checks whether a cookie exists, even if its value is empty.
 - `getAllCookies()` returns every cookie as an object of name → decoded value.
 - `getCookies(pattern)` returns the cookies whose name matches a glob (`*`, `?`), RegExp or predicate.
 - `deleteCookies(pattern, options)` deletes every cookie whose name matches a glob (`*`, `?`), RegExp or predicate, and returns the names it couldn't delete.
