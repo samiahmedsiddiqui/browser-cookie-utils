@@ -16,6 +16,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- New `unit` values: `second`, `minute`, `week` and `year` (365 days).
+- `expires` option for an exact expiry `Date`, and `session` option for session cookies.
 - `setJSONCookie(name, value, options)` and `getJSONCookie(name)` store and read JSON values.
 - `hasCookie(name)` checks whether a cookie exists, even if its value is empty.
 - `getAllCookies()` returns every cookie as an object of name → decoded value.

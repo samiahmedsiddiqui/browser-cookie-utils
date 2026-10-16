@@ -50,15 +50,15 @@ const { getCookie, setCookie, deleteCookie } = require('browser-cookie-utils');
 
 ### Available Builds
 
-| File                              | Format     | Notes                                        |
-| --------------------------------- | ---------- | -------------------------------------------- |
-| `browser-cookie-utils.js`         | ESM        | Non-minified, modern bundlers                |
-| `browser-cookie-utils.min.js`     | ESM        | Minified, production-ready (ES module)       |
-| `browser-cookie-utils.cjs`        | CJS        | Non-minified, CommonJS                       |
-| `browser-cookie-utils.min.cjs`    | CJS        | Minified, production-ready                   |
-| `browser-cookie-utils.umd.js`     | UMD        | Minified, `<script>` tag / AMD / CommonJS    |
-| `browser-cookie-utils.d.ts`       | Types      | TypeScript declarations (`.d.cts` for CJS)   |
-| `browser-cookie-utils.min.js.map` | Source map | For minified ESM (published to npm only)     |
+| File                              | Format     | Notes                                      |
+| --------------------------------- | ---------- | ------------------------------------------ |
+| `browser-cookie-utils.js`         | ESM        | Non-minified, modern bundlers              |
+| `browser-cookie-utils.min.js`     | ESM        | Minified, production-ready (ES module)     |
+| `browser-cookie-utils.cjs`        | CJS        | Non-minified, CommonJS                     |
+| `browser-cookie-utils.min.cjs`    | CJS        | Minified, production-ready                 |
+| `browser-cookie-utils.umd.js`     | UMD        | Minified, `<script>` tag / AMD / CommonJS  |
+| `browser-cookie-utils.d.ts`       | Types      | TypeScript declarations (`.d.cts` for CJS) |
+| `browser-cookie-utils.min.js.map` | Source map | For minified ESM (published to npm only)   |
 
 All builds use ES2015+ syntax (`const`, arrow functions, template literals), so Internet Explorer is not supported.
 
@@ -87,7 +87,7 @@ setCookie('theme', 'dark');
 ```html
 <script src="https://cdn.jsdelivr.net/npm/browser-cookie-utils@2/dist/browser-cookie-utils.umd.js"></script>
 <script>
-  browserCookieUtils.setCookie('theme', 'dark');
+	browserCookieUtils.setCookie('theme', 'dark');
 </script>
 ```
 
@@ -118,18 +118,36 @@ Creates a cookie with:
 import { setCookie } from 'browser-cookie-utils';
 
 setCookie('session', 'abc123', {
-  timeToLive: 2,
-  unit: 'hour'
+	timeToLive: 2,
+	unit: 'hour'
 });
 ```
 
 Supported units:
 
-- `hour`
-- `day`
+- `second`, `minute`, `hour`, `day`, `week`
 - `month` (30 days)
+- `year` (365 days)
 
 An unknown unit falls back to `hour`.
+
+### Exact expiry date
+
+```js
+setCookie('promo', 'spring', {
+	expires: new Date('2030-04-01T00:00:00Z')
+});
+```
+
+`expires` overrides `timeToLive` / `unit`. An invalid date is ignored.
+
+### Session cookie
+
+```js
+setCookie('tab', 'open', { session: true });
+```
+
+No expiry is set, so the browser removes the cookie when it closes. `session` overrides `expires` and `timeToLive`.
 
 ---
 
@@ -139,29 +157,31 @@ An unknown unit falls back to `hour`.
 import { setCookie } from 'browser-cookie-utils';
 
 setCookie('user', 'sami', {
-  timeToLive: 7,
-  unit: 'day',
-  domains: ['example.com', '.example.org'],
-  path: '/',
-  sameSite: 'Lax',
-  secure: true
+	timeToLive: 7,
+	unit: 'day',
+	domains: ['example.com', '.example.org'],
+	path: '/',
+	sameSite: 'Lax',
+	secure: true
 });
 ```
 
 #### Available options
 
-| Option       | Type       | Default          | Description              |
-| ------------ | ---------- | ---------------- | ------------------------ |
-| `timeToLive` | `number`   | `1`              | Expiration duration      |
-| `unit`       | `string`   | `hour`           | `hour`, `day`, `month`   |
-| `domains`    | `string[]` | current hostname | Domains to set cookie on |
+| Option       | Type       | Default          | Description                                   |
+| ------------ | ---------- | ---------------- | --------------------------------------------- |
+| `timeToLive` | `number`   | `1`              | Expiration duration                           |
+| `unit`       | `string`   | `hour`           | `second` … `year` (see above)                 |
+| `expires`    | `Date`     | —                | Exact expiry; overrides `timeToLive` / `unit` |
+| `session`    | `boolean`  | `false`          | No expiry; overrides `expires`                |
+| `domains`    | `string[]` | current hostname | Domains to set cookie on                      |
+| `path`       | `string`   | `/`              | Cookie path                                   |
+| `sameSite`   | `string`   | `Lax`            | `Lax`, `Strict`, `None`                       |
+| `secure`     | `boolean`  | auto             | Forced Secure flag                            |
 
 > The `domain` attribute is skipped for `localhost` and IP addresses (browsers reject it there), so a host-only cookie is set instead.
 
 > Cookie names must be valid RFC 6265 tokens (no spaces, `;`, `=`, etc.). Invalid names are ignored.
-| `path`       | `string`   | `/`              | Cookie path              |
-| `sameSite`   | `string`   | `Lax`            | `Lax`, `Strict`, `None`  |
-| `secure`     | `boolean`  | auto             | Forced Secure flag       |
 
 ### Cross-site cookies (SameSite=None)
 
@@ -169,8 +189,8 @@ setCookie('user', 'sami', {
 import { setCookie } from 'browser-cookie-utils';
 
 setCookie('crossSite', 'true', {
-  sameSite: 'None',
-  secure: true
+	sameSite: 'None',
+	secure: true
 });
 ```
 
@@ -211,7 +231,7 @@ Returns:
 import { hasCookie } from 'browser-cookie-utils';
 
 if (hasCookie('consent')) {
-  // ...
+	// ...
 }
 ```
 
@@ -255,10 +275,10 @@ deleteCookie('theme');
 import { deleteCookie } from 'browser-cookie-utils';
 
 deleteCookie('user', {
-  domains: ['example.com'],
-  path: '/',
-  sameSite: 'Lax',
-  secure: true
+	domains: ['example.com'],
+	path: '/',
+	sameSite: 'Lax',
+	secure: true
 });
 ```
 
@@ -286,8 +306,8 @@ Pass `domains` and/or `paths` to try specific values only:
 
 ```js
 deleteCookies('session_*', {
-  domains: ['example.com'],
-  paths: ['/', '/app']
+	domains: ['example.com'],
+	paths: ['/', '/app']
 });
 ```
 
@@ -319,9 +339,9 @@ browserCookieUtils.setCookie('theme', 'dark', 2, 'day', ['.example.com']);
 
 ```js
 browserCookieUtils.setCookie('theme', 'dark', {
-  timeToLive: 2,
-  unit: 'day',
-  domains: ['.example.com']
+	timeToLive: 2,
+	unit: 'day',
+	domains: ['.example.com']
 });
 ```
 
@@ -337,7 +357,7 @@ browserCookieUtils.deleteCookie('theme', ['.example.com']);
 
 ```js
 browserCookieUtils.deleteCookie('theme', {
-  domains: ['.example.com']
+	domains: ['.example.com']
 });
 ```
 
