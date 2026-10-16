@@ -1,4 +1,5 @@
-export type CookieUnit = 'hour' | 'day' | 'month';
+export type CookieUnit =
+	'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year';
 
 export type CookieSameSite = 'Lax' | 'Strict' | 'None';
 
@@ -18,6 +19,10 @@ export interface SetCookieOptions extends CookieAttributes {
 	timeToLive?: number;
 	/** Expiration unit. Defaults to `hour`. */
 	unit?: CookieUnit;
+	/** Exact expiry date. Overrides `timeToLive` / `unit`; ignored if invalid. */
+	expires?: Date;
+	/** Session cookie (no expiry). Overrides `expires` and `timeToLive`. */
+	session?: boolean;
 }
 
 export interface DeleteCookiesOptions extends Omit<

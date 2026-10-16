@@ -140,8 +140,58 @@ test('setCookie uses defaults', () => {
 	]);
 });
 
+test('setCookie supports every unit', () => {
+	const units = {
+		second: 1,
+		minute: 60,
+		hour: 3600,
+		day: 86400,
+		week: 604800,
+		month: 2592000,
+		year: 31536000
+	};
+
+	Object.keys(units).forEach((unit) => setCookie('a', '1', { unit }));
+
+	assert.deepEqual(
+		written.map((cookie) => Number(cookie.match(/max-age=(\d+)/)[1])),
+		Object.values(units)
+	);
+});
+
+test('setCookie keeps max-age at least 1 second', () => {
+	setCookie('a', '1', { timeToLive: 0.1, unit: 'second' });
+
+	assert.match(written[0], /; max-age=1;/);
+});
+
+test('setCookie uses an exact expires date', () => {
+	const date = new Date(Date.UTC(2030, 0, 2, 3, 4, 5));
+	setCookie('a', '1', { expires: date, timeToLive: 5, unit: 'day' });
+
+	assert.match(written[0], /^a=1; expires=Wed, 02 Jan 2030 03:04:05 GMT;/);
+	assert.doesNotMatch(written[0], /max-age/);
+});
+
+test('setCookie ignores an invalid expires date', () => {
+	setCookie('a', '1', { expires: new Date('nope') });
+	setCookie('b', '1', { expires: '2030-01-01' });
+
+	assert.match(written[0], /^a=1; max-age=3600;/);
+	assert.match(written[1], /^b=1; max-age=3600;/);
+});
+
+test('setCookie creates session cookies', () => {
+	setCookie('a', '1', { session: true, expires: new Date(), timeToLive: 2 });
+
+	assert.equal(
+		written[0],
+		'a=1; domain=.www.example.com; path=/; secure; samesite=Lax'
+	);
+});
+
 test('setCookie falls back to hours for an unknown unit', () => {
-	setCookie('theme', 'dark', { timeToLive: 2, unit: 'week' });
+	setCookie('theme', 'dark', { timeToLive: 2, unit: 'fortnight' });
 
 	assert.match(written[0], /max-age=7200;/);
 });

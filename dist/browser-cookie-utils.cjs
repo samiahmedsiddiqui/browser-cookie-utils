@@ -2,9 +2,13 @@
 'use strict';
 
 const UNIT_TO_SECONDS = {
+	second: 1,
+	minute: 60,
 	hour: 60 * 60,
 	day: 24 * 60 * 60,
-	month: 30 * 24 * 60 * 60
+	week: 7 * 24 * 60 * 60,
+	month: 30 * 24 * 60 * 60,
+	year: 365 * 24 * 60 * 60
 };
 
 /**
@@ -250,6 +254,33 @@ function expireCookie(name, domain, attributes) {
 }
 
 /**
+ * Builds the expiry attribute for a cookie.
+ *
+ * Precedence: `session` (no expiry) > valid `expires` Date > `timeToLive` + `unit`.
+ *
+ * @param {Object} options - session, expires, timeToLive and unit values.
+ *
+ * @returns {string}
+ */
+function expiryAttribute({ session, expires, timeToLive, unit }) {
+	if (session === true) return '';
+
+	if (expires instanceof Date && !isNaN(expires.getTime())) {
+		return `; expires=${expires.toUTCString()}`;
+	}
+
+	let ttl = 1;
+	if (typeof timeToLive === 'number' && timeToLive > 0) {
+		ttl = timeToLive;
+	}
+
+	const unitSeconds = UNIT_TO_SECONDS[unit] || UNIT_TO_SECONDS.hour;
+
+	// At least 1 second; `max-age=0` would delete the cookie instead.
+	return `; max-age=${Math.max(1, Math.round(ttl * unitSeconds))}`;
+}
+
+/**
  * Gets the value of a cookie by name.
  *
  * @param {string} name - Name of the cookie to retrieve.
@@ -326,24 +357,20 @@ function setCookie(name, value, options = {}) {
 	const {
 		timeToLive = 1,
 		unit = 'hour',
+		expires,
+		session = false,
 		domains = [],
 		path = '/',
 		sameSite = 'Lax',
 		secure = window.location.protocol === 'https:'
 	} = options;
 
-	let ttl = 1;
-	if (typeof timeToLive === 'number' && timeToLive > 0) {
-		ttl = timeToLive;
-	}
-
-	const unitSeconds = UNIT_TO_SECONDS[unit] || UNIT_TO_SECONDS.hour;
-	const maxAge = Math.round(ttl * unitSeconds);
 	const encodedValue = encodeURIComponent(value == null ? '' : String(value));
+	const expiry = expiryAttribute({ session, expires, timeToLive, unit });
 	const attributes = commonAttributes({ path, secure, sameSite });
 
 	resolveDomains(domains).forEach((domain) => {
-		document.cookie = `${name}=${encodedValue}; max-age=${maxAge}${domainAttribute(domain)}${attributes}`;
+		document.cookie = `${name}=${encodedValue}${expiry}${domainAttribute(domain)}${attributes}`;
 	});
 }
 
