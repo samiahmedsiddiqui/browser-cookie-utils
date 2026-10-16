@@ -10,11 +10,12 @@ Lightweight, dependency-free JavaScript helpers for getting, setting, and deleti
 ## Features
 
 - Zero runtime dependencies
-- Browser-only (no Node.js required in production)
+- Browser-only, but safe to import during SSR (helpers are no-ops without `document`)
+- TypeScript declarations included
 - Simple, ergonomic API
 - Cookie expiration with time units
 - Multi-domain cookie support
-- Automatic Secure flag on HTTPS
+- Automatic Secure flag on HTTPS (and always with `SameSite=None`)
 - SameSite support (`Lax`, `Strict`, `None`)
 - Path customization
 - Safe encoding / decoding
@@ -33,7 +34,7 @@ npm install browser-cookie-utils@2
 import { setCookie, getCookie, deleteCookie } from 'browser-cookie-utils';
 ```
 
-#### CJS import (Node.js / legacy bundlers):
+#### CJS import (CommonJS bundlers):
 
 ```js
 const { getCookie, setCookie, deleteCookie } = require('browser-cookie-utils');
@@ -42,21 +43,26 @@ const { getCookie, setCookie, deleteCookie } = require('browser-cookie-utils');
 ### Browser (UMD / CDN)
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/browser-cookie-utils/dist/browser-cookie-utils.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/browser-cookie-utils@2/dist/browser-cookie-utils.umd.js"></script>
 ```
+
+> Pin the major version (`@2`) so a future breaking release doesn't break your page.
 
 ### Available Builds
 
-| File                              | Format     | Notes                                   |
-| --------------------------------- | ---------- | --------------------------------------- |
-| `browser-cookie-utils.js`         | ESM        | Non-minified, modern bundlers           |
-| `browser-cookie-utils.min.js`     | ESM        | Minified, production-ready (ES module)  |
-| `browser-cookie-utils.cjs.js`     | CJS        | Non-minified, Node.js / CommonJS        |
-| `browser-cookie-utils.cjs.min.js` | CJS        | Minified, production-ready              |
-| `browser-cookie-utils.umd.js`     | UMD        | Legacy browsers / script tag & CommonJS |
-| `browser-cookie-utils.min.js.map` | Source map | For minified ESM                        |
+| File                              | Format     | Notes                                        |
+| --------------------------------- | ---------- | -------------------------------------------- |
+| `browser-cookie-utils.js`         | ESM        | Non-minified, modern bundlers                |
+| `browser-cookie-utils.min.js`     | ESM        | Minified, production-ready (ES module)       |
+| `browser-cookie-utils.cjs`        | CJS        | Non-minified, CommonJS                       |
+| `browser-cookie-utils.min.cjs`    | CJS        | Minified, production-ready                   |
+| `browser-cookie-utils.umd.js`     | UMD        | Minified, `<script>` tag / AMD / CommonJS    |
+| `browser-cookie-utils.d.ts`       | Types      | TypeScript declarations (`.d.cts` for CJS)   |
+| `browser-cookie-utils.min.js.map` | Source map | For minified ESM (published to npm only)     |
 
-> **Note:** The library attaches itself to `window.browserCookieUtils` in the browser.
+All builds use ES2015+ syntax (`const`, arrow functions, template literals), so Internet Explorer is not supported.
+
+> **Note:** Only the UMD build attaches itself to `window.browserCookieUtils`.
 
 ## Usage by environment
 
@@ -78,8 +84,8 @@ setCookie('theme', 'dark');
 
 ### Browser (script tag / CDN)
 
-```js
-<script src="https://cdn.jsdelivr.net/npm/browser-cookie-utils/dist/browser-cookie-utils.umd.js"></script>
+```html
+<script src="https://cdn.jsdelivr.net/npm/browser-cookie-utils@2/dist/browser-cookie-utils.umd.js"></script>
 <script>
   browserCookieUtils.setCookie('theme', 'dark');
 </script>
@@ -123,6 +129,8 @@ Supported units:
 - `day`
 - `month` (30 days)
 
+An unknown unit falls back to `hour`.
+
 ---
 
 ### Set cookie with full configuration
@@ -147,6 +155,10 @@ setCookie('user', 'sami', {
 | `timeToLive` | `number`   | `1`              | Expiration duration      |
 | `unit`       | `string`   | `hour`           | `hour`, `day`, `month`   |
 | `domains`    | `string[]` | current hostname | Domains to set cookie on |
+
+> The `domain` attribute is skipped for `localhost` and IP addresses (browsers reject it there), so a host-only cookie is set instead.
+
+> Cookie names must be valid RFC 6265 tokens (no spaces, `;`, `=`, etc.). Invalid names are ignored.
 | `path`       | `string`   | `/`              | Cookie path              |
 | `sameSite`   | `string`   | `Lax`            | `Lax`, `Strict`, `None`  |
 | `secure`     | `boolean`  | auto             | Forced Secure flag       |
@@ -174,7 +186,7 @@ const theme = getCookie('theme');
 
 Returns:
 
-- `string` if found
+- `string` if found (URI-decoded; returned raw if it isn't valid URI encoding)
 - `null` if not found
 
 ## Delete a cookie
@@ -198,12 +210,11 @@ deleteCookie('user', {
 });
 ```
 
-> ⚠️ For deletion to succeed, `domain`, `path`, `secure`, and `sameSite` **must match** the original cookie.
+> ⚠️ For deletion to succeed, `domains` and `path` **must match** the ones used when the cookie was set.
 
 > **Browser (UMD) usage:**
 > When using the UMD build via a `<script>` tag, replace imported functions with
 > `browserCookieUtils.*`.
-
 
 ## Migration Guide (v1.x → v2.0.0)
 
@@ -259,7 +270,7 @@ If you need the old behavior, continue using `v1.x`, which remains stable.
 
 ## Security behavior
 
-- Automatically adds `Secure` on HTTPS
+- Automatically adds `Secure` on HTTPS and whenever `SameSite=None`
 - Supports modern `SameSite` rules
 - Uses `encodeURIComponent` / `decodeURIComponent`
 - Sets `path=/` by default
