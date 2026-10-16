@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Docs tooling: VitePress now runs on a patched Vite 6 (npm `overrides`), which clears the dev-only Vite and esbuild advisories. The published package is unaffected.
+- `repository.url` in `package.json` uses the `git+https` form npm expects.
+
 ## [2.1.0] - Oct 16, 2026
 
 ### Security
