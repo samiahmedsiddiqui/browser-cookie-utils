@@ -4,10 +4,15 @@ import globals from 'globals';
 import prettierRecommended from 'eslint-plugin-prettier/recommended';
 
 export default defineConfig([
-	globalIgnores(['dist/', 'node_modules/']),
+	globalIgnores([
+		'.claude/',
+		'dist/',
+		'node_modules/',
+		'docs/.vitepress/{cache,dist}/'
+	]),
 
 	{
-		files: ['**/*.js'],
+		files: ['**/*.{js,mjs}'],
 		extends: [js.configs.recommended],
 		languageOptions: {
 			ecmaVersion: 'latest',
@@ -31,7 +36,12 @@ export default defineConfig([
 
 	// Tooling and tests run in Node; tests mock `window` / `document`.
 	{
-		files: ['build.js', 'eslint.config.js', 'test/**/*.js'],
+		files: [
+			'build.js',
+			'eslint.config.js',
+			'docs/.vitepress/*.mjs',
+			'test/**/*.js'
+		],
 		languageOptions: {
 			globals: {
 				...globals.node,

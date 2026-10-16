@@ -3,6 +3,8 @@ node_modules/
 
 # build output
 dist/*.map
+docs/.vitepress/cache/
+docs/.vitepress/dist/
 
 # logs
 npm-debug.log*
