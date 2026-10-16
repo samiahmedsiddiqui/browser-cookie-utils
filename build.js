@@ -17,26 +17,29 @@ const distDir = path.join(__dirname, 'dist');
 // Output files
 const esmFile = path.join(distDir, 'browser-cookie-utils.js');
 const esmMinFile = path.join(distDir, 'browser-cookie-utils.min.js');
-const cjsFile = path.join(distDir, 'browser-cookie-utils.cjs.js');
-const cjsMinFile = path.join(distDir, 'browser-cookie-utils.cjs.min.js');
+const cjsFile = path.join(distDir, 'browser-cookie-utils.cjs');
+const cjsMinFile = path.join(distDir, 'browser-cookie-utils.min.cjs');
 const umdFile = path.join(distDir, 'browser-cookie-utils.umd.js');
 const mapFile = 'browser-cookie-utils.min.js.map';
+const typesSrcFile = path.join(__dirname, 'src/browser-cookie-utils.d.ts');
+const typesFile = path.join(distDir, 'browser-cookie-utils.d.ts');
+const cjsTypesFile = path.join(distDir, 'browser-cookie-utils.d.cts');
 
 const banner = `/*! ${name} v${version} | License: ${license} */`;
 
+// Removes the ESM export and the leading 'use strict' (the wrappers add their own).
 function stripExports(code) {
-	return code.replace(
-		/^\s*export\s*\{[^}]*\};?\s*$/gm,
-		''
-	);
+	return code
+		.replace(/^\s*export\s*\{[^}]*\};?\s*$/gm, '')
+		.replace(/^\s*'use strict';\s*/, '');
 }
 
 async function build() {
 	try {
 		fs.mkdirSync(distDir, { recursive: true });
 
-    const sourceCode = fs.readFileSync(srcFile, 'utf8');
-    const nonEsmCode = stripExports(sourceCode);
+		const sourceCode = fs.readFileSync(srcFile, 'utf8');
+		const nonEsmCode = stripExports(sourceCode);
 
 		/* ---------------- ESM ---------------- */
 
@@ -63,8 +66,8 @@ async function build() {
 
 		/* ---------------- CJS ---------------- */
 
-		const cjsWrapped = `
-'use strict';
+		const cjsWrapped = `'use strict';
+
 ${nonEsmCode}
 module.exports = { getCookie, setCookie, deleteCookie };
 `;
@@ -84,8 +87,7 @@ module.exports = { getCookie, setCookie, deleteCookie };
 
 		/* ---------------- UMD ---------------- */
 
-		const umdWrapped = `
-(function (root, factory) {
+		const umdWrapped = `(function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     define([], factory);
   } else if (typeof module === 'object' && module.exports) {
@@ -94,6 +96,7 @@ module.exports = { getCookie, setCookie, deleteCookie };
     root.browserCookieUtils = factory();
   }
 }(typeof self !== 'undefined' ? self : this, function () {
+'use strict';
 ${nonEsmCode}
 return { getCookie, setCookie, deleteCookie };
 }));
@@ -110,12 +113,22 @@ return { getCookie, setCookie, deleteCookie };
 
 		fs.writeFileSync(umdFile, umdMinified.code, 'utf8');
 
+		/* ---------------- Types ---------------- */
+
+		fs.copyFileSync(typesSrcFile, typesFile);
+		fs.copyFileSync(typesSrcFile, cjsTypesFile);
+
 		console.log('✔ Build complete');
 		console.log(`  - ${path.relative(process.cwd(), esmFile)} (ESM)`);
-		console.log(`  - ${path.relative(process.cwd(), esmMinFile)} (Minified ESM)`);
+		console.log(
+			`  - ${path.relative(process.cwd(), esmMinFile)} (Minified ESM)`
+		);
 		console.log(`  - ${path.relative(process.cwd(), cjsFile)} (CJS)`);
-		console.log(`  - ${path.relative(process.cwd(), cjsMinFile)} (Minified CJS)`);
+		console.log(
+			`  - ${path.relative(process.cwd(), cjsMinFile)} (Minified CJS)`
+		);
 		console.log(`  - ${path.relative(process.cwd(), umdFile)} (UMD)`);
+		console.log(`  - ${path.relative(process.cwd(), typesFile)} (Types)`);
 	} catch (err) {
 		console.error('✖ Build failed');
 		console.error(err);

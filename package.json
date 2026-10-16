@@ -3,13 +3,25 @@
 	"version": "2.0.1",
 	"description": "Lightweight, dependency-free JavaScript helpers for getting, setting, and deleting browser cookies with modern browser support.",
 	"type": "module",
-	"main": "dist/browser-cookie-utils.cjs.min.js",
+	"main": "dist/browser-cookie-utils.min.cjs",
 	"module": "dist/browser-cookie-utils.min.js",
+	"types": "dist/browser-cookie-utils.d.ts",
+	"unpkg": "dist/browser-cookie-utils.umd.js",
+	"jsdelivr": "dist/browser-cookie-utils.umd.js",
 	"exports": {
 		".": {
-			"import": "./dist/browser-cookie-utils.min.js",
-			"require": "./dist/browser-cookie-utils.cjs.min.js"
-		}
+			"import": {
+				"types": "./dist/browser-cookie-utils.d.ts",
+				"default": "./dist/browser-cookie-utils.min.js"
+			},
+			"require": {
+				"types": "./dist/browser-cookie-utils.d.cts",
+				"default": "./dist/browser-cookie-utils.min.cjs"
+			},
+			"default": "./dist/browser-cookie-utils.min.js"
+		},
+		"./umd": "./dist/browser-cookie-utils.umd.js",
+		"./package.json": "./package.json"
 	},
 	"files": [
 		"dist/",
@@ -21,8 +33,11 @@
 	"scripts": {
 		"lint": "eslint .",
 		"lint:fix": "eslint . --fix",
-		"format": "prettier --write src/**/*.js",
-		"build": "node build.js"
+		"format": "prettier --write \"src/**/*.{js,ts}\" \"test/**/*.js\" build.js",
+		"format:check": "prettier --check \"src/**/*.{js,ts}\" \"test/**/*.js\" build.js",
+		"build": "node build.js",
+		"test": "npm run build && node --test test/browser-cookie-utils.test.js",
+		"prepublishOnly": "npm run lint && npm test"
 	},
 	"repository": {
 		"type": "git",

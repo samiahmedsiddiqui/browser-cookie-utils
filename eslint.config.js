@@ -28,6 +28,27 @@ export default [
 	},
 
 	{
-		ignores: ['build.js', 'dist/**', 'node_modules/**']
+		files: ['build.js', 'test/**/*.js'],
+		languageOptions: {
+			ecmaVersion: 'latest',
+			sourceType: 'module',
+			globals: {
+				console: 'readonly',
+				process: 'readonly',
+				globalThis: 'readonly',
+				window: 'writable',
+				document: 'writable'
+			}
+		},
+		plugins: {
+			prettier: prettierPlugin
+		},
+		rules: {
+			'prettier/prettier': 'error'
+		}
+	},
+
+	{
+		ignores: ['dist/**', 'node_modules/**']
 	}
 ];
